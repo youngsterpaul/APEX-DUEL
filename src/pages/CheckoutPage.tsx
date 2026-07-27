@@ -22,7 +22,6 @@ import { Separator } from '@/components/ui/separator';
 // Icons
 import { ArrowLeft, MapPin, CheckCircle, Loader2, X, ChevronRight, CreditCard, ShoppingBag, Phone } from 'lucide-react';
 import CheckoutSkeleton from '@/components/checkout/CheckoutSkeleton';
-import { DiscountCodeInput } from '@/components/checkout/DiscountCodeInput';
 import { LocationPickerSheet } from '@/components/checkout/LocationPickerSheet';
 import { cn } from '@/lib/utils';
 import OptimizedImage from '@/components/OptimizedImage';
@@ -39,6 +38,8 @@ const CheckoutPage = () => {
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [mpesaPhone, setMpesaPhone] = useState('');
+  const [mpesaPhoneError, setMpesaPhoneError] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<{
     status: string;
     message: string;
@@ -203,10 +204,18 @@ const CheckoutPage = () => {
       city: deliveryData.city,
       county: deliveryData.county,
     });
+    setMpesaPhone(customerData.phone);
+    setMpesaPhoneError('');
     setShowPaymentModal(true);
   };
 
   const handleMpesaPayment = async () => {
+    const phoneRegex = /^(\+254|254|0)[17]\d{8}$/;
+    if (!mpesaPhone.trim() || !phoneRegex.test(mpesaPhone.replace(/\s/g, ''))) {
+      setMpesaPhoneError('Enter a valid M-Pesa phone number');
+      return;
+    }
+    setMpesaPhoneError('');
     setPaymentStatus({ status: 'processing', message: '', checkoutRequestId: null });
     try {
       const itemsList = getSelectedItems();
@@ -316,7 +325,7 @@ const CheckoutPage = () => {
       }
 
       const result = await initiatePayment({
-        phone: customerData.phone,
+        phone: mpesaPhone,
         amount: finalTotal,
         orderId: currentOrderId,
       });
@@ -451,7 +460,7 @@ const CheckoutPage = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Phone</span>
-                <span className="font-semibold">{customerData.phone}</span>
+                <span className="font-semibold">{mpesaPhone}</span>
               </div>
             </div>
           </div>
@@ -493,11 +502,32 @@ const CheckoutPage = () => {
       default:
         return (
           <div className="space-y-5 py-2">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">
-                You'll receive an STK Push on{' '}
-                <span className="font-semibold text-foreground">{customerData.phone}</span>
-              </p>
+            <div>
+              <label htmlFor="mpesaPhone" className="text-sm text-muted-foreground mb-1.5 block">
+                M-Pesa Phone Number
+              </label>
+              <Input
+                id="mpesaPhone"
+                type="tel"
+                value={mpesaPhone}
+                onChange={(e) => {
+                  setMpesaPhone(e.target.value);
+                  if (mpesaPhoneError) setMpesaPhoneError('');
+                }}
+                placeholder="0712345678"
+                inputMode="tel"
+                className={cn(
+                  'h-12 w-full rounded-2xl bg-background border-border text-base',
+                  mpesaPhoneError && 'border-destructive'
+                )}
+              />
+              {mpesaPhoneError ? (
+                <p className="text-destructive text-xs mt-1">{mpesaPhoneError}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">
+                  You'll receive an STK Push prompt on this number
+                </p>
+              )}
             </div>
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border border-green-200 dark:border-green-900 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-5">
@@ -516,7 +546,7 @@ const CheckoutPage = () => {
               </div>
               <Button
                 onClick={handleMpesaPayment}
-                disabled={isProcessing}
+                disabled={isProcessing || !mpesaPhone.trim()}
                 className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-full"
               >
                 {isProcessing ? (
@@ -671,7 +701,7 @@ const CheckoutPage = () => {
 
                 <div data-error={!!errors.phone} className="w-full">
                   <Label htmlFor="phone" className="text-sm text-muted-foreground mb-1.5 block">
-                    Phone Number (M-Pesa)
+                    Call Phone Number
                   </Label>
                   <Input
                     id="phone"
@@ -824,11 +854,6 @@ const CheckoutPage = () => {
                 })}
               </div>
 
-              {/* Discount code */}
-              <div className="mt-4 w-full">
-                <DiscountCodeInput />
-              </div>
-
               {/* Totals */}
               <div className="mt-5 space-y-3 w-full">
                 <div className="flex justify-between text-base">
@@ -858,14 +883,6 @@ const CheckoutPage = () => {
                         : `KSh ${effectiveDeliveryFee.toLocaleString()}`}
                   </span>
                 </div>
-                {calculations.discount > 0 && (
-                  <div className="flex justify-between text-base text-green-600">
-                    <span>Discount</span>
-                    <span className="font-semibold">
-                      -KSh {calculations.discount.toLocaleString()}
-                    </span>
-                  </div>
-                )}
                 <Separator />
                 <div className="flex justify-between items-baseline">
                   <span className="text-lg font-medium">Total</span>
