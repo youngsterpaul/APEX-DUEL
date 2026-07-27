@@ -1,469 +1,627 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
+import { Resend } from "https://esm.sh/resend@4.0.1";
 
 const MPESA_ENVIRONMENT = Deno.env.get('MPESA_ENVIRONMENT') || 'sandbox';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-interface PaymentRequest {
-  phone: string;
-  amount: number;
-  orderId: string;
-}
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-interface RateLimitConfig {
-  maxAttempts: number;
-  windowMinutes: number;
-  blockDurationMinutes: number;
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+function getClientIP(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  const realIP = req.headers.get('x-real-ip');
+  const cfConnectingIP = req.headers.get('cf-connecting-ip');
+  
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  if (realIP) {
+    return realIP;
+  }
+  if (cfConnectingIP) {
+    return cfConnectingIP;
+  }
+  
+  return 'unknown';
 }
 
-const RATE_LIMITS: Record<string, RateLimitConfig> = {
-  payment_init: {
-    maxAttempts: 3,
-    windowMinutes: 15,
-    blockDurationMinutes: 60
-  }
-};
-
-async function checkRateLimit(
-  identifier: string,
-  requestType: string
-): Promise<{ allowed: boolean; remainingTime?: number }> {
-  const config = RATE_LIMITS[requestType];
-  const now = new Date();
-  
-  const { data: existing, error } = await supabase
-    .from('mpesa_rate_limit')
-    .select('*')
-    .eq('identifier', identifier)
-    .eq('request_type', requestType)
-    .maybeSingle();
-  
-  if (error) {
-    console.error('Rate limit check error:', error);
-    return { allowed: true };
-  }
-  
-  if (existing?.blocked_until) {
-    const blockExpiry = new Date(existing.blocked_until);
-    if (now < blockExpiry) {
-      const remainingMinutes = Math.ceil(
-        (blockExpiry.getTime() - now.getTime()) / 60000
-      );
-      return { allowed: false, remainingTime: remainingMinutes };
-    }
-  }
-  
-  if (existing) {
-    const windowStart = new Date(existing.window_start);
-    const windowExpiry = new Date(
-      windowStart.getTime() + config.windowMinutes * 60000
-    );
+async function isIPWhitelisted(ip: string, environment: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('callback_ip_whitelist')
+      .select('ip_address')
+      .eq('ip_address', ip)
+      .eq('environment', environment);
     
-    if (now < windowExpiry) {
-      if (existing.attempts >= config.maxAttempts) {
-        const blockUntil = new Date(
-          now.getTime() + config.blockDurationMinutes * 60000
-        );
-        
-        await supabase
-          .from('mpesa_rate_limit')
-          .update({
-            blocked_until: blockUntil.toISOString(),
-            last_attempt: now.toISOString()
-          })
-          .eq('id', existing.id);
-        
-        await supabase
-          .from('security_alerts')
-          .insert({
-            alert_type: 'mpesa_rate_limit_exceeded',
-            severity: 'warning',
-            identifier,
-            details: {
-              attempts: existing.attempts,
-              blocked_until: blockUntil.toISOString()
-            }
-          });
-        
-        return { allowed: false, remainingTime: config.blockDurationMinutes };
-      }
-      
-      await supabase
-        .from('mpesa_rate_limit')
-        .update({
-          attempts: existing.attempts + 1,
-          last_attempt: now.toISOString()
-        })
-        .eq('id', existing.id);
-      
-      return { allowed: true };
-    } else {
-      await supabase
-        .from('mpesa_rate_limit')
-        .update({
-          attempts: 1,
-          window_start: now.toISOString(),
-          last_attempt: now.toISOString(),
-          blocked_until: null
-        })
-        .eq('id', existing.id);
-      
-      return { allowed: true };
+    if (error) {
+      console.error('Error checking IP whitelist:', error);
+      return false;
     }
+    
+    return data && data.length > 0;
+  } catch (error) {
+    console.error('IP whitelist check failed:', error);
+    return false;
   }
-  
-  await supabase
-    .from('mpesa_rate_limit')
-    .insert({
-      identifier,
-      request_type: requestType,
-      attempts: 1,
-      window_start: now.toISOString(),
-      last_attempt: now.toISOString()
+}
+
+async function sendPaymentConfirmationEmail(orderId: string) {
+  try {
+    // ── Fetch order (items are stored as JSONB directly on the orders row) ──
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('order_id', orderId)
+      .single();
+
+    if (orderError || !order) {
+      console.error('Order not found for email:', orderError);
+      return;
+    }
+
+    if (!order.email || !order.amount) {
+      console.error('Missing required fields for email:', {
+        hasEmail: !!order.email,
+        hasAmount: !!order.amount,
+      });
+      return;
+    }
+
+    console.log('Sending payment confirmation email to:', order.email);
+
+    // ── Config ─────────────────────────────────────────────────────────────
+    const accentHex = '#22c55e';
+    const accentRgb = '34,197,94';
+    const gradient  = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+    const badgeBg   = '#f0fdf4';
+    const year      = new Date().getFullYear();
+
+    const customerName = order.username || 'Valued Customer';
+    const shortId      = orderId.slice(0, 8).toUpperCase();
+    const fullId       = orderId.toUpperCase();
+    const amount       = (order.amount as number).toLocaleString();
+    const mpesaRef     = order.mpesa_receipt_number || order.mpesa_code || '';
+
+    const orderDate = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      timeZone: 'Africa/Nairobi',
+    }).format(new Date(order.created_at || new Date()));
+
+    // ── Items rows with product image ──────────────────────────────────────
+    const items: any[] = Array.isArray(order.items) ? order.items : [];
+
+    const itemsHtml = items.length > 0 ? `
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 8px;">
+        <tr>
+          <td colspan="3" style="padding-bottom: 10px;">
+            <p style="margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 1.5px;
+                       text-transform: uppercase; color: #94a3b8;">Items Ordered</p>
+          </td>
+        </tr>
+        ${items.map((item: any) => {
+          const qty   = item.quantity  || 1;
+          const price = item.product?.price ?? item.price ?? 0;
+          const name  = item.product?.name  ?? item.name  ?? 'Product';
+          const image = item.product?.image ?? item.product?.images?.[0] ?? item.image ?? '';
+          const total = qty * price;
+
+          return `
+        <tr>
+          <td style="padding: 12px 0; border-top: 1px solid #f1f5f9; vertical-align: top;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <!-- Product image -->
+                <td width="56" style="vertical-align: top; padding-right: 14px;">
+                  ${image
+                    ? `<img src="${image}" alt="${name}"
+                          width="56" height="56"
+                          style="display: block; width: 56px; height: 56px; object-fit: cover;
+                                 border-radius: 10px; border: 1px solid #e2e8f0;">`
+                    : `<div style="width: 56px; height: 56px; background: #f1f5f9;
+                                   border-radius: 10px; text-align: center;
+                                   line-height: 56px; font-size: 24px;">📦</div>`
+                  }
+                </td>
+                <!-- Product details -->
+                <td style="vertical-align: top;">
+                  <p style="margin: 0 0 4px; font-size: 15px; font-weight: 600;
+                             color: #0f172a; line-height: 1.4;">${name}</p>
+                  <p style="margin: 0; font-size: 13px; color: #64748b;">
+                    Qty: ${qty} &nbsp;·&nbsp; KES ${price.toLocaleString()} each
+                  </p>
+                </td>
+                <!-- Line total -->
+                <td style="vertical-align: top; text-align: right;
+                            white-space: nowrap; padding-left: 12px;">
+                  <p style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">
+                    KES ${total.toLocaleString()}
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>`;
+        }).join('')}
+      </table>` : '';
+
+    // ── Full HTML ──────────────────────────────────────────────────────────
+    const html = `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Successful — Order #${shortId}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f0f4f8;
+             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+             'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+
+  <!-- Hidden preheader -->
+  <span style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+    Your M-Pesa payment of KES ${amount} has been confirmed — SmartKenya &#8203;&zwj;&zwnj;&nbsp;&zwnj;&zwj;
+  </span>
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f4f8;">
+    <tr>
+      <td align="center" style="padding: 36px 16px 48px;">
+
+<!-- Brand header -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin-bottom: 20px;">
+          <tr>
+            <td align="center">
+              <img src="https://www.smartkenya.co.ke/assets/images/smartkenya-logo-BcDCofys.png"
+                   alt="SmartKenya"
+                   width="180"
+                   style="display: block; width: 180px; height: auto; margin: 0 auto;">
+              <p style="margin: 6px 0 0; font-size: 12px; letter-spacing: 3px;
+                         text-transform: uppercase; color: #94a3b8;">Online Shopping</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Main card -->
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="max-width: 600px; background: #ffffff; border-radius: 20px;
+                      overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.08),
+                      0 4px 16px rgba(0,0,0,0.04);">
+
+          <!-- Hero banner -->
+          <tr>
+            <td style="background: ${gradient}; padding: 44px 40px; text-align: center;">
+              <div style="display: inline-block; width: 72px; height: 72px;
+                           background: rgba(255,255,255,0.2); border-radius: 50%;
+                           line-height: 72px; font-size: 34px; margin-bottom: 20px;">✅</div>
+              <h1 style="margin: 0; font-size: 32px; font-weight: 800; color: #ffffff;
+                          letter-spacing: -0.5px; line-height: 1.2;">Payment Confirmed!</h1>
+              <p style="margin: 10px 0 0; font-size: 16px; color: rgba(255,255,255,0.85);
+                         letter-spacing: 0.3px;">
+                Order #${shortId} is now being processed
+              </p>
+              <div style="margin: 22px auto 0; width: 40px; height: 2px;
+                           background: rgba(255,255,255,0.4); border-radius: 2px;"></div>
+            </td>
+          </tr>
+
+          <!-- Body message -->
+          <tr>
+            <td style="padding: 36px 40px 0 40px;">
+              <p style="margin: 0; font-size: 17px; color: #334155; line-height: 1.8;">
+                Hi <strong>${customerName}</strong>,<br><br>
+                Thank you! We've successfully received your M-Pesa payment and your order
+                is now being processed. We'll send you another update once your items are packed
+                and on their way.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Order details card -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0;">
+                <tr>
+                  <td style="padding: 22px 24px;">
+                    <p style="margin: 0 0 18px; font-size: 13px; font-weight: 700;
+                               letter-spacing: 1.5px; text-transform: uppercase; color: #94a3b8;">
+                      Payment &amp; Order Details
+                    </p>
+
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 8px 0; font-size: 15px; color: #64748b;">Order Number</td>
+                        <td style="padding: 8px 0; font-size: 15px; font-weight: 700; color: #0f172a;
+                                   text-align: right; font-family: 'Courier New', monospace;
+                                   letter-spacing: 0.5px;">#${fullId}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; color: #64748b;">Order Date</td>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; color: #0f172a; text-align: right;">${orderDate}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; color: #64748b;">Payment Method</td>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; color: #0f172a; text-align: right;">M-Pesa</td>
+                      </tr>
+                      ${mpesaRef ? `
+                      <tr>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; color: #64748b;">M-Pesa Receipt</td>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; font-weight: 700; color: #0f172a;
+                                   text-align: right; font-family: 'Courier New', monospace;
+                                   letter-spacing: 1px;">${mpesaRef}</td>
+                      </tr>` : ''}
+                      <tr>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; color: #64748b;">Status</td>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9; text-align: right;">
+                          <span style="display: inline-block; background: ${badgeBg};
+                                       color: ${accentHex}; padding: 4px 14px; border-radius: 20px;
+                                       font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+                                       text-transform: uppercase;">Confirmed</span>
+                        </td>
+                      </tr>
+                      ${order.shipping_address ? `
+                      <tr>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; color: #64748b; vertical-align: top;">Ship To</td>
+                        <td style="padding: 8px 0; border-top: 1px solid #f1f5f9;
+                                   font-size: 15px; color: #0f172a; text-align: right;">
+                          ${order.shipping_address}
+                        </td>
+                      </tr>` : ''}
+                    </table>
+
+                    ${itemsHtml}
+
+                    <!-- Grand total -->
+                    <table width="100%" cellpadding="0" cellspacing="0"
+                           style="margin-top: 14px; border-top: 2px solid #e2e8f0;">
+                      <tr>
+                        <td style="padding-top: 14px; font-size: 18px; font-weight: 800;
+                                   color: #0f172a;">Total Paid</td>
+                        <td style="padding-top: 14px; text-align: right; font-size: 24px;
+                                   font-weight: 800; color: ${accentHex};">KES ${amount}</td>
+                      </tr>
+                    </table>
+
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- What's next info strip -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="background: #fffbeb; border-radius: 10px; border-left: 3px solid #f59e0b;">
+                <tr>
+                  <td style="padding: 16px 18px;">
+                    <p style="margin: 0 0 8px; font-size: 13px; font-weight: 700;
+                               color: #b45309; letter-spacing: 1px; text-transform: uppercase;">
+                      What Happens Next?
+                    </p>
+                    <p style="margin: 0; font-size: 14px; color: #78350f; line-height: 1.8;">
+                      • Your order will be processed within 24 hours<br>
+                      • You'll receive a shipping confirmation once dispatched<br>
+                      • Track your order status in your account dashboard
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA button -->
+          <tr>
+            <td style="padding: 32px 40px 0 40px; text-align: center;">
+              <a href="https://smartkenya.co.ke/orders?status=processing"
+                 style="display: inline-block; background: ${gradient}; color: #ffffff;
+                        padding: 15px 36px; text-decoration: none; border-radius: 50px;
+                        font-weight: 700; font-size: 16px; letter-spacing: 0.3px;
+                        box-shadow: 0 8px 24px rgba(${accentRgb}, 0.35);">
+                View Order Status &rarr;
+              </a>
+            </td>
+          </tr>
+
+          <!-- Help strip -->
+          <tr>
+            <td style="padding: 36px 40px 28px 40px; background: #f8fafc;
+                       text-align: center; border-top: 1px solid #f1f5f9; margin-top: 36px;">
+              <p style="margin: 0 0 6px; font-size: 15px; color: #94a3b8;">
+                Questions about your order?
+              </p>
+              <p style="margin: 0;">
+                <a href="mailto:support@smartkenya.co.ke"
+                   style="color: ${accentHex}; text-decoration: none;
+                          font-weight: 600; font-size: 16px;">
+                  support@smartkenya.co.ke
+                </a>
+                <span style="color: #cbd5e1; margin: 0 10px;">|</span>
+                <a href="tel:+254798229783"
+                   style="color: ${accentHex}; text-decoration: none;
+                          font-weight: 600; font-size: 16px;">
+                  +254 798 229 783
+                </a>
+              </p>
+            </td>
+          </tr>
+
+        </table><!-- /main card -->
+
+        <!-- Footer -->
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="max-width: 600px; margin-top: 28px;">
+          <tr>
+            <td align="center" style="padding: 0 20px 20px;">
+              <p style="margin: 0 0 6px; font-size: 11px; color: #94a3b8;">
+                © ${year} SmartKenya. All rights reserved.
+              </p>
+              <p style="margin: 0 0 10px; font-size: 11px; color: #cbd5e1;">
+                This email was sent to ${order.email}
+              </p>
+              <p style="margin: 0;">
+                <a href="https://smartkenya.co.ke/privacy"
+                   style="font-size: 11px; color: #94a3b8; text-decoration: none;">Privacy Policy</a>
+                <span style="color: #cbd5e1; margin: 0 6px;">•</span>
+                <a href="https://smartkenya.co.ke/terms"
+                   style="font-size: 11px; color: #94a3b8; text-decoration: none;">Terms of Service</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    const emailResponse = await resend.emails.send({
+      from:    "SmartKenya Orders <orders@smartkenya.co.ke>",
+      to:      [order.email],
+      subject: `✅ Payment Confirmed — Order #${shortId}`,
+      html,
     });
-  
-  return { allowed: true };
-}
 
-function getMpesaBaseUrl(): string {
-  return MPESA_ENVIRONMENT === 'production' 
-    ? 'https://api.safaricom.co.ke' 
-    : 'https://sandbox.safaricom.co.ke';
-}
-
-async function getMpesaAccessToken() {
-  const consumerKey = Deno.env.get('MPESA_CONSUMER_KEY');
-  const consumerSecret = Deno.env.get('MPESA_CONSUMER_SECRET');
-  
-  if (!consumerKey || !consumerSecret) {
-    throw new Error('M-Pesa credentials not configured. Please add MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET to your Supabase secrets.');
+    console.log("Payment confirmation email sent successfully:", emailResponse);
+  } catch (error) {
+    console.error('Error sending confirmation email:', error);
   }
-
-  const auth = btoa(`${consumerKey}:${consumerSecret}`);
-  const baseUrl = getMpesaBaseUrl();
-  
-  const response = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to get M-Pesa access token:', errorText);
-    throw new Error('Failed to get M-Pesa access token');
-  }
-
-  const data = await response.json();
-  return data.access_token;
-}
-
-async function initiateSTKPush(phone: string, amount: number, orderId: string) {
-  const accessToken = await getMpesaAccessToken();
-  const shortcode = Deno.env.get('MPESA_SHORTCODE') || '174379';
-  const passkey = Deno.env.get('MPESA_PASSKEY') || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
-
-  const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
-  const password = btoa(`${shortcode}${passkey}${timestamp}`);
-  
-  // Format phone number (remove + and ensure it starts with 254)
-  let formattedPhone = phone.replace(/\D/g, '');
-  if (formattedPhone.startsWith('0')) {
-    formattedPhone = '254' + formattedPhone.slice(1);
-  } else if (formattedPhone.startsWith('+254')) {
-    formattedPhone = formattedPhone.slice(1);
-  } else if (!formattedPhone.startsWith('254')) {
-    formattedPhone = '254' + formattedPhone;
-  }
-
-  // Generate unique webhook secret for this order and store it in order_secrets
-  const webhookSecret = crypto.randomUUID();
-  await supabase
-    .from('order_secrets')
-    .upsert({ order_id: orderId, webhook_secret: webhookSecret }, { onConflict: 'order_id' });
-
-  // Use the project-specific function URL for callback with secret
-  const callbackUrl = `https://sgpjnbdrmwrupeqhjqpj.supabase.co/functions/v1/mpesa-callback?secret=${webhookSecret}`;
-
-  const payload = {
-    BusinessShortCode: shortcode,
-    Password: password,
-    Timestamp: timestamp,
-    TransactionType: "CustomerPayBillOnline",
-    Amount: Math.round(amount),
-    PartyA: formattedPhone,
-    PartyB: shortcode,
-    PhoneNumber: formattedPhone,
-    CallBackURL: callbackUrl,
-    AccountReference: orderId,
-    TransactionDesc: `Payment for order ${orderId}`
-  };
-
-  const baseUrl = getMpesaBaseUrl();
-  const response = await fetch(`${baseUrl}/mpesa/stkpush/v1/processrequest`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('STK Push failed:', errorText);
-    throw new Error(`STK Push failed: ${response.statusText}`);
-  }
-
-  const result = await response.json();
-  return result;
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    });
   }
 
   if (req.method !== 'POST') {
     console.error('Method not allowed:', req.method);
     return new Response('Method not allowed', { 
-      status: 405, 
-      headers: corsHeaders 
+      status: 405,
+      headers: {
+        'Allow': 'POST',
+        'Access-Control-Allow-Origin': '*',
+      }
     });
   }
 
   try {
-    // ── Authenticate caller ────────────────────────────────────────────────
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!token) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized: missing token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const authClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
-    const { data: userData, error: userErr } = await authClient.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized: invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const callerId = userData.user.id;
+    const clientIP = getClientIP(req);
 
-    const requestBody = await req.text();
-    const { phone, amount, orderId }: PaymentRequest = JSON.parse(requestBody);
-
-    // ── Verify caller owns the referenced order ───────────────────────────
-    if (orderId) {
-      const { data: order, error: orderErr } = await supabase
-        .from('orders')
-        .select('user_id, amount')
-        .eq('order_id', orderId)
-        .maybeSingle();
-      if (orderErr || !order) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Order not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (order.user_id !== callerId) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Forbidden: order does not belong to caller' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-
-    // Get identifier for rate limiting (IP address)
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() 
-              || req.headers.get('x-real-ip') 
-              || 'unknown';
-    const identifier = `ip_${ip}`;
-
-    // Check rate limit
-    const rateLimitResult = await checkRateLimit(identifier, 'payment_init');
+    // CRITICAL SECURITY: Validate webhook secret from URL
+    const url = new URL(req.url);
+    const webhookSecret = url.searchParams.get('secret');
     
-    if (!rateLimitResult.allowed) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Too many payment attempts',
-          message: `Please try again in ${rateLimitResult.remainingTime} minutes`,
-          retryAfter: rateLimitResult.remainingTime
-        }),
-        {
-          status: 429,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-            'Retry-After': String(rateLimitResult.remainingTime! * 60)
-          }
-        }
-      );
+    if (!webhookSecret) {
+      console.error('Missing webhook secret in callback URL');
+      await supabase.from('security_alerts').insert({
+        alert_type: 'mpesa_callback_no_secret',
+        severity: 'critical',
+        identifier: clientIP,
+        details: { ip: clientIP, timestamp: new Date().toISOString() }
+      });
+      return new Response('Unauthorized - missing secret', { status: 401 });
     }
 
-    if (!phone || !amount || !orderId) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Missing required fields: phone, amount, and orderId are required' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Validate phone number format
-    const phoneRegex = /^(\+?254|0)?[17]\d{8}$/;
-    if (!phoneRegex.test(phone)) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Invalid phone number format. Please use format: 0712345678 or +254712345678' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Validate amount
-    if (amount < 1 || amount > 300000) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Invalid amount',
-          message: 'Amount must be between Ksh 1 and Ksh 300,000' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Initiate STK Push
-    const stkResponse = await initiateSTKPush(phone, amount, orderId);
-    
-    if (stkResponse.ResponseCode === "0") {
-      // Check if there's an existing payment record for this order that can be reused
-      const { data: existingPayment, error: fetchError } = await supabase
-        .from('mpesa_payments')
-        .select('id')
-        .eq('order_id', orderId)
-        .in('status', ['pending', 'failed', 'cancelled'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error('Error fetching existing payment:', fetchError);
+    // Environment-aware IP checking (secondary defense)
+    if (MPESA_ENVIRONMENT === 'production') {
+      const isWhitelisted = await isIPWhitelisted(clientIP, MPESA_ENVIRONMENT);
+      if (!isWhitelisted) {
+        console.warn('Unauthorized callback attempt from IP:', clientIP);
+        return new Response('Unauthorized', { status: 401 });
       }
-
-      if (existingPayment) {
-        // Update the existing payment record with new checkout request details
-        const { error: updateError } = await supabase
-          .from('mpesa_payments')
-          .update({
-            checkout_request_id: stkResponse.CheckoutRequestID,
-            merchant_request_id: stkResponse.MerchantRequestID,
-            phone_number: phone,
-            amount: amount,
-            status: 'pending',
-            mpesa_receipt_number: null,
-            result_code: null,
-            result_desc: null,
-            transaction_date: null,
-            callback_data: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingPayment.id);
-
-        if (updateError) {
-          console.error('Database error when updating M-Pesa payment record:', updateError);
-          throw new Error('Failed to update payment request in database');
-        }
-        
-        console.log('Updated existing payment record:', existingPayment.id);
-      } else {
-        // Create new payment record if none exists
-        const { error: dbError } = await supabase
-          .from('mpesa_payments')
-          .insert({
-            checkout_request_id: stkResponse.CheckoutRequestID,
-            merchant_request_id: stkResponse.MerchantRequestID,
-            order_id: orderId,
-            phone_number: phone,
-            amount: amount,
-            status: 'pending'
-          });
-
-        if (dbError) {
-          console.error('Database error when creating M-Pesa payment record:', dbError);
-          throw new Error('Failed to record payment request in database');
-        }
-        
-        console.log('Created new payment record for order:', orderId);
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'STK Push sent successfully',
-          checkoutRequestId: stkResponse.CheckoutRequestID
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
     } else {
-      throw new Error(stkResponse.ResponseDescription || 'STK Push failed');
+      // In sandbox, log but don't block (for easier testing)
+      const isWhitelisted = await isIPWhitelisted(clientIP, MPESA_ENVIRONMENT);
+      if (!isWhitelisted) {
+        console.log('Non-whitelisted IP in sandbox mode:', clientIP);
+      }
     }
+
+    const callbackData = await req.json();
+
+    const { Body } = callbackData;
+    if (!Body || !Body.stkCallback) {
+      console.error('Invalid callback format');
+      return new Response('Invalid callback format', { 
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        }
+      });
+    }
+
+    const { stkCallback } = Body;
+    const {
+      MerchantRequestID,
+      CheckoutRequestID,
+      ResultCode,
+      ResultDesc,
+      CallbackMetadata
+    } = stkCallback;
+
+    // Extract transaction details from metadata
+    let mpesaReceiptNumber = '';
+    let transactionDate = '';
+    let phoneNumber = '';
+    let amount = 0;
+
+    if (CallbackMetadata && CallbackMetadata.Item) {
+      CallbackMetadata.Item.forEach((item: any) => {
+        switch (item.Name) {
+          case 'MpesaReceiptNumber':
+            mpesaReceiptNumber = item.Value;
+            break;
+          case 'TransactionDate':
+            transactionDate = item.Value;
+            break;
+          case 'PhoneNumber':
+            phoneNumber = item.Value;
+            break;
+          case 'Amount':
+            amount = item.Value;
+            break;
+        }
+      });
+    }
+
+    // Validate webhook secret matches order
+    const { data: payment, error: paymentError } = await supabase
+      .from('mpesa_payments')
+      .select('order_id')
+      .eq('checkout_request_id', CheckoutRequestID)
+      .single();
+
+    if (paymentError || !payment) {
+      console.error('Payment not found for CheckoutRequestID:', CheckoutRequestID);
+      return new Response('Payment not found', { 
+        status: 404,
+        headers: { 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // Verify webhook secret matches the order (stored in order_secrets table,
+    // NOT on the orders table — this is where the mismatch bug was)
+    const { data: orderSecret, error: secretError } = await supabase
+      .from('order_secrets')
+      .select('webhook_secret')
+      .eq('order_id', payment.order_id)
+      .single();
+
+    if (secretError || !orderSecret || orderSecret.webhook_secret !== webhookSecret) {
+      console.error('Invalid webhook secret for order:', payment.order_id);
+      await supabase.from('security_alerts').insert({
+        alert_type: 'mpesa_callback_invalid_secret',
+        severity: 'critical',
+        identifier: clientIP,
+        details: { 
+          order_id: payment.order_id,
+          ip: clientIP,
+          timestamp: new Date().toISOString()
+        }
+      });
+      return new Response('Unauthorized - invalid secret', { status: 401 });
+    }
+
+    // Update payment record
+    const updateData: any = {
+      merchant_request_id: MerchantRequestID,
+      result_code: ResultCode,
+      result_desc: ResultDesc,
+      callback_data: callbackData,
+      updated_at: new Date().toISOString()
+    };
+
+    if (ResultCode === 0) {
+      // Payment successful
+      updateData.status = 'success';
+      updateData.mpesa_receipt_number = mpesaReceiptNumber;
+      updateData.transaction_date = new Date(
+        transactionDate.toString().replace(
+          /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/,
+          '$1-$2-$3T$4:$5:$6'
+        )
+      ).toISOString();
+    } else {
+      // Payment failed
+      updateData.status = 'failed';
+    }
+
+    const { error: updateError } = await supabase
+      .from('mpesa_payments')
+      .update(updateData)
+      .eq('checkout_request_id', CheckoutRequestID);
+
+    if (updateError) {
+      console.error('Failed to update payment:', updateError);
+      return new Response('Database update failed', { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        }
+      });
+    }
+
+    // If payment was successful, update order status and send confirmation email
+    if (ResultCode === 0 && payment?.order_id) {
+      // Update order status to 'processing' (valid transition from pending)
+      const { error: orderUpdateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'processing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('order_id', payment.order_id);
+
+      if (orderUpdateError) {
+        console.error('Failed to update order status:', orderUpdateError);
+      }
+
+      // Clear webhook secret after successful payment
+      // (deletes from order_secrets, not orders — matches where it's actually stored)
+      await supabase
+        .from('order_secrets')
+        .delete()
+        .eq('order_id', payment.order_id);
+
+      // Send confirmation email
+      await sendPaymentConfirmationEmail(payment.order_id);
+    }
+
+    return new Response('Callback processed', {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+      }
+    });
 
   } catch (error: any) {
-    console.error('Payment initiation error:', error);
-    
-    let errorMessage = 'Payment initiation failed';
-    if (error.message.includes('credentials not configured')) {
-      errorMessage = 'M-Pesa integration not properly configured. Please contact support.';
-    } else if (error.message.includes('Failed to get M-Pesa access token')) {
-      errorMessage = 'Unable to connect to M-Pesa service. Please try again later.';
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: errorMessage 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    console.error('Callback processing error:', error);
+    return new Response('Internal server error', { 
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
       }
-    );
+    });
   }
 };
 
