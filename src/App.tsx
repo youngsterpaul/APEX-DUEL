@@ -11,7 +11,6 @@ import { MobileHeader } from './components/ui/mobile-header';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SecurityHeaders from './components/SecurityHeaders';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
-import ChatWidget from './components/chat/ChatWidget';
 import { OfflineDataPreloader } from './components/OfflineDataPreloader';
 import { useUserBehaviorTracking } from './hooks/useUserBehaviorTracking';
 import { useMobileHeaderProps } from './hooks/useMobileHeaderProps';
@@ -68,7 +67,6 @@ function App() {
 
         {!isMobile && <Footer />}
         {isMobile && <MobileNav />}
-        {!isAdminRoute && <ChatWidget />}
       </div>
     </TooltipProvider>
   );

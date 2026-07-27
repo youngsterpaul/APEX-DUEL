@@ -6,7 +6,6 @@ import { useUserRoutePermissions } from '@/hooks/useUserRoutePermissions';
 import { useSecurityAlertsCount } from '@/hooks/useSecurityAlertsCount';
 import { usePendingOrdersCount } from '@/hooks/usePendingOrdersCount';
 import { usePendingReturnsCount } from '@/hooks/usePendingReturnsCount';
-import { useUnreadChatCount } from '@/hooks/useUnreadChatCount';
 import {
   LayoutDashboard,
   Package,
@@ -39,7 +38,6 @@ import {
   MessageSquareQuote,
   Newspaper,
   QrCode,
-  MessageCircle,
   Eye,
 } from 'lucide-react';
 import {
@@ -121,7 +119,6 @@ export function ModernAdminSidebar() {
   const securityAlertsCount = useSecurityAlertsCount();
   const pendingOrdersCount = usePendingOrdersCount();
   const pendingReturnsCount = usePendingReturnsCount();
-  const unreadChatCount = useUnreadChatCount();
 
   const mainMenuItems: MenuItem[] = [
     {
@@ -167,13 +164,6 @@ export function ModernAdminSidebar() {
       path: '/admin/returns',
       badge: pendingReturnsCount > 0 ? String(pendingReturnsCount) : null,
       badgeVariant: 'destructive' as const,
-    },
-    {
-      name: 'Chat',
-      icon: MessageCircle,
-      path: '/admin/chat',
-      badge: unreadChatCount > 0 ? String(unreadChatCount) : null,
-      badgeVariant: 'default' as const,
     },
   ];
 

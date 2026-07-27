@@ -79,11 +79,6 @@ export const useMobileHeaderProps = () => {
     title = "Privacy";
   } else if (path.startsWith("/checkout")) {
     title = "Place Order";
-  } else if (path.startsWith("/chatting")) {
-    backTo = "/chat";
-    title = "Smartkenya Support";
-  } else if (path.startsWith("/chat")) {
-    title = "Customer Support";
   } else if (path.startsWith("/settings")) {
     title = "Settings";
   } else if (path.startsWith("/flash-sale")) {

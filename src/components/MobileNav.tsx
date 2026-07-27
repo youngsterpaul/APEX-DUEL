@@ -1,16 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, MessageCircle, ShoppingCart, User, List } from 'lucide-react';
+import { Home, ShoppingCart, User, List } from 'lucide-react';
 import { useCartContext } from '@/contexts/CartContext';
 import { Badge } from '@/components/ui/badge';
 import { isMobileUserAgent } from "@/hooks/use-mobile";
-import { useUserUnreadChat } from '@/hooks/useUserUnreadChat';
 
 const MobileNav = () => {
   const location = useLocation();
   const isMobile = isMobileUserAgent();
-  const { unreadCount: chatUnread } = useUserUnreadChat();
 
-  const showMobileNavOnPaths = ['/', '/category', '/chat', '/account', '/cart'];
+  const showMobileNavOnPaths = ['/', '/category', '/account', '/cart'];
   const showMobileNav = showMobileNavOnPaths.includes(location.pathname);
     
   let items: any[] = [];
@@ -29,7 +27,6 @@ const MobileNav = () => {
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: List, label: 'Category', path: '/category' },
-    { icon: MessageCircle, label: 'Chat', path: '/chat', count: chatUnread },
     { 
       icon: ShoppingCart, 
       label: 'Cart', 

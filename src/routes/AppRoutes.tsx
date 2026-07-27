@@ -11,8 +11,6 @@ const Index = lazy(() => import("@/pages/Index"));
 const ProductDetailsPage = lazy(() => import("@/pages/ProductDetailsPage"));
 const CartPage = lazy(() => import("@/pages/CartPage"));
 const WishlistPage = lazy(() => import("@/pages/WishlistPage"));
-const ChatPage = lazy(() => import("@/pages/ChatPage"));
-const ChattingPage = lazy(() => import("@/pages/ChattingPage"));
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
 const AccountPage = lazy(() => import("@/pages/AccountPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
@@ -85,7 +83,6 @@ const AdminNewsletterPage = lazy(() => import("@/pages/admin/AdminNewsletterPage
 const AdminTestimonialsPage = lazy(() => import("@/pages/admin/AdminTestimonialsPage"));
 const AdminABTestingPage = lazy(() => import("@/pages/admin/AdminABTestingPage"));
 const AdminQRCodeScannerPage = lazy(() => import("@/pages/admin/AdminQRCodeScannerPage"));
-const AdminChatPage = lazy(() => import("@/pages/admin/AdminChatPage"));
 const AdminUserBehaviorPage = lazy(() => import("@/pages/admin/AdminUserBehaviorPage"));
 const AdminSalesForecastPage = lazy(() => import("@/pages/admin/AdminSalesForecastPage"));
 
@@ -107,8 +104,6 @@ const AppRoutes = () => (
     <Route path="/cart" element={<CartPage />} />
     <Route path="/checkout" element={<CheckoutPage />} />
     <Route path="/wishlist" element={<WishlistPage />} />
-    <Route path="/chat" element={<ChatPage />} />
-    <Route path="/chatting" element={<ChattingPage />} />
     <Route path="/profile" element={<ProfilePage />} />
     <Route path="/account" element={<AccountPage />} />
     <Route path="/settings" element={<SettingsPage />} />
@@ -176,7 +171,6 @@ const AppRoutes = () => (
     <Route path={`${ADMIN_PREFIX}/testimonials`} element={<AdminRoute requiredRole="admin"><AdminTestimonialsPage /></AdminRoute>} />
     <Route path={`${ADMIN_PREFIX}/ab-testing`} element={<AdminRoute requiredRole="superadmin"><AdminABTestingPage /></AdminRoute>} />
     <Route path={`${ADMIN_PREFIX}/qr-scanner`} element={<AdminRoute requiredRole="moderator"><AdminQRCodeScannerPage /></AdminRoute>} />
-    <Route path={`${ADMIN_PREFIX}/chat`} element={<AdminRoute requiredRole="moderator"><AdminChatPage /></AdminRoute>} />
      <Route path={`${ADMIN_PREFIX}/user-behavior`} element={<AdminRoute requiredRole="superadmin"><AdminUserBehaviorPage /></AdminRoute>} />
      <Route path={`${ADMIN_PREFIX}/sales-forecast`} element={<AdminRoute requiredRole="superadmin"><AdminSalesForecastPage /></AdminRoute>} />
 
