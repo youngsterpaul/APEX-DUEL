@@ -12,6 +12,7 @@ interface AddToCartSectionProps {
     name: string;
     price: number;
     stock?: number;
+    image?: string;
   };
   selectedVariants: Record<string, string>;
   requiredVariants: string[];
@@ -73,8 +74,18 @@ const AddToCartSection = ({
     if (!validateVariantSelection()) return;
     setIsBuyingNow(true);
     try {
-      await addToCart(product.product_id, selectedVariants, quantity);
-      navigate('/checkout');
+      const buyNowItem = {
+        id: `buynow-${product.product_id}-${Date.now()}`,
+        product: {
+          id: product.product_id,
+          name: product.name,
+          price: product.price,
+          image: product.image || '/placeholder.svg',
+        },
+        variant_selections: selectedVariants,
+        quantity,
+      };
+      navigate('/checkout', { state: { buyNowItem } });
     } catch {
       toast({ title: "Error", description: "Failed to proceed to checkout", variant: "destructive" });
       setIsBuyingNow(false);

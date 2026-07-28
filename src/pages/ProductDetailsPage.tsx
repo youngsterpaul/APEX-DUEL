@@ -457,7 +457,8 @@ const productForTabs = useMemo(() => {
                     product_id: product.product_id,
                     name: product.name,
                     price: price,
-                    stock: product.stock
+                    stock: product.stock,
+                    image: product.image_urls?.[0] || '/placeholder.svg'
                   }}
                   selectedVariants={selectedVariants}
                   requiredVariants={requiredVariants}

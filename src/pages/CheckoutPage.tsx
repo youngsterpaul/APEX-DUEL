@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelectiveCart } from '@/contexts/SelectiveCartContext';
 import { useMpesaPayment } from '@/hooks/useMpesaPayment';
 import { useCartContext } from '@/contexts/CartContext';
@@ -28,6 +28,8 @@ import OptimizedImage from '@/components/OptimizedImage';
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const buyNowItem = (location.state as { buyNowItem?: any } | null)?.buyNowItem || null;
   const isMobile = isMobileUserAgent();
   const { user, profile } = useAuth();
   const { calculations, getSelectedItems, appliedCoupons } = useSelectiveCart();
@@ -103,12 +105,12 @@ const CheckoutPage = () => {
 
   // Redirect if no items
   useEffect(() => {
-    if (calculations.selectedItemsCount === 0) {
+    if (!buyNowItem && calculations.selectedItemsCount === 0) {
       navigate('/cart');
     }
-  }, [calculations.selectedItemsCount, navigate]);
+  }, [calculations.selectedItemsCount, navigate, buyNowItem]);
 
-  const selectedItems = getSelectedItems();
+  const selectedItems = buyNowItem ? [buyNowItem] : getSelectedItems();
 
   const countyLabel = useMemo(
     () => getCountyOptions().find((c) => c.value === deliveryData.county)?.label || '',
@@ -131,9 +133,13 @@ const CheckoutPage = () => {
   const hasLocationFee = !!(deliveryData.county && deliveryData.city);
   const isEligibleForFreeDelivery = hasLocationFee && locationDeliveryFee === 0;
   const effectiveDeliveryFee = locationDeliveryFee;
+  const orderSubtotal = buyNowItem
+    ? buyNowItem.product.price * buyNowItem.quantity
+    : calculations.subtotal;
+  const orderDiscount = buyNowItem ? 0 : calculations.discount;
   const finalTotalWithLocation =
-    Math.max(0, calculations.subtotal - calculations.discount) + effectiveDeliveryFee;
-  const finalTotal = finalTotalWithLocation;
+    Math.max(0, orderSubtotal - orderDiscount) + effectiveDeliveryFee;
+  const finalTotal = Math.ceil(finalTotalWithLocation);
 
   const updateProfileDeliveryInfo = async (updates: Record<string, string>) => {
     if (!user?.id) return;
@@ -218,7 +224,7 @@ const CheckoutPage = () => {
     setMpesaPhoneError('');
     setPaymentStatus({ status: 'processing', message: '', checkoutRequestId: null });
     try {
-      const itemsList = getSelectedItems();
+      const itemsList = selectedItems;
       const orderItems = itemsList.map((item) => ({
         id: item.id,
         product: {
@@ -370,14 +376,16 @@ const CheckoutPage = () => {
                 }
               }
 
-              const purchasedCategories = getSelectedItems()
+              const purchasedCategories = selectedItems
                 .map((item) => item.product?.category || '')
                 .filter(Boolean);
               if (purchasedCategories.length > 0) {
                 trackPurchase(purchasedCategories);
               }
 
-              clearCart();
+              if (!buyNowItem) {
+                clearCart();
+              }
               clearInterval(pollPayment);
               setTimeout(() => {
                 setShowPaymentModal(false);
@@ -859,7 +867,7 @@ const CheckoutPage = () => {
                 <div className="flex justify-between text-base">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="font-semibold text-foreground">
-                    KSh {calculations.subtotal.toLocaleString()}
+                    KSh {orderSubtotal.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-base">

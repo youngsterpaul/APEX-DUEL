@@ -10,7 +10,6 @@ import CartSkeleton from '@/components/cart/CartSkeleton';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Loader2, ShoppingBag, ShoppingCart, Shield, Truck, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
 import { useShippingSettings } from '@/hooks/useShippingSettings';
 import { useCartRelatedProducts } from '@/hooks/useCartRelatedProducts';
 import OptimizedImage from '@/components/OptimizedImage';
@@ -26,7 +25,6 @@ const CartPage = () => {
   
   const isMobile = isMobileUserAgent();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [isNavigating, setIsNavigating] = useState(false);
   const { freeShippingThreshold } = useShippingSettings();
   const isEligibleForFreeDelivery = calculations.subtotal >= (freeShippingThreshold || 0);
@@ -58,7 +56,7 @@ const CartPage = () => {
     try {
       setIsNavigating(true);
       await new Promise(resolve => setTimeout(resolve, 300));
-      navigate(user ? '/checkout' : '/auth');
+      navigate('/checkout');
     } catch (err) {
       console.error('Checkout navigation error:', err);
     } finally {

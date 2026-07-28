@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap, X, Star, Minus, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCart } from '@/hooks/useCart';
 import { useProductVariants } from '@/hooks/useProductVariants';
 import { useProductReviews } from '@/hooks/useReviews';
 import OptimizedImage from '../OptimizedImage';
@@ -46,7 +45,6 @@ const MobileBuyNowModal = ({
   const [isBuyingNow, setIsBuyingNow] = useState(false);
   const [showAnimation, setShowAnimation] = useState(false);
   const { toast } = useToast();
-  const { addToCart } = useCart();
   const { variants, getVariantsByType, getVariantTypes } = useProductVariants(product.product_id);
   const { data: reviews = [], isLoading: reviewsLoading } = useProductReviews(product.product_id);
 
@@ -159,9 +157,19 @@ const MobileBuyNowModal = ({
     setIsBuyingNow(true);
 
     try {
-      await addToCart(product.product_id, selectedVariants, quantity);
+      const buyNowItem = {
+        id: `buynow-${product.product_id}-${Date.now()}`,
+        product: {
+          id: product.product_id,
+          name: product.name,
+          price: calculatePrice(),
+          image: Array.isArray(product.image) ? product.image[0] : product.image,
+        },
+        variant_selections: selectedVariants,
+        quantity,
+      };
       onClose();
-      navigate('/checkout');
+      navigate('/checkout', { state: { buyNowItem } });
     } catch (error) {
       toast({
         title: "Error",
