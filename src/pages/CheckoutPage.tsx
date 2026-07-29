@@ -9,6 +9,7 @@ import { isMobileUserAgent } from '@/hooks/use-mobile';
 import { useDeliveryAddresses } from '@/hooks/useDeliveryAddresses';
 import { useLocations } from '@/hooks/useLocations';
 import { trackPurchase } from '@/utils/userIntent';
+import { useToast } from '@/hooks/use-toast';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,10 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const buyNowItem = (location.state as { buyNowItem?: any } | null)?.buyNowItem || null;
+  const [buyNowQuantity, setBuyNowQuantity] = useState(buyNowItem?.quantity ?? 1);
+  const effectiveBuyNowItem = buyNowItem ? { ...buyNowItem, quantity: buyNowQuantity } : null;
   const isMobile = isMobileUserAgent();
+  const { toast } = useToast();
   const { user, profile } = useAuth();
   const { calculations, getSelectedItems, appliedCoupons } = useSelectiveCart();
   const { clearCart } = useCartContext();
@@ -110,7 +114,7 @@ const CheckoutPage = () => {
     }
   }, [calculations.selectedItemsCount, navigate, buyNowItem]);
 
-  const selectedItems = buyNowItem ? [buyNowItem] : getSelectedItems();
+  const selectedItems = effectiveBuyNowItem ? [effectiveBuyNowItem] : getSelectedItems();
 
   const countyLabel = useMemo(
     () => getCountyOptions().find((c) => c.value === deliveryData.county)?.label || '',
@@ -133,8 +137,8 @@ const CheckoutPage = () => {
   const hasLocationFee = !!(deliveryData.county && deliveryData.city);
   const isEligibleForFreeDelivery = hasLocationFee && locationDeliveryFee === 0;
   const effectiveDeliveryFee = locationDeliveryFee;
-  const orderSubtotal = buyNowItem
-    ? buyNowItem.product.price * buyNowItem.quantity
+  const orderSubtotal = effectiveBuyNowItem
+    ? effectiveBuyNowItem.product.price * effectiveBuyNowItem.quantity
     : calculations.subtotal;
   const orderDiscount = buyNowItem ? 0 : calculations.discount;
   const finalTotalWithLocation =
@@ -166,8 +170,8 @@ const CheckoutPage = () => {
 
   const validate = () => {
     const newErrors: ErrorsType = {};
-    if (!customerData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!customerData.lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!user && !customerData.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!user && !customerData.lastName.trim()) newErrors.lastName = 'Last name is required';
 
     // Email and phone are required for guests (no account to fall back on).
     // Logged-in users can leave them blank if already on file, but if they
@@ -198,6 +202,11 @@ const CheckoutPage = () => {
 
   const handleProceedToPayment = () => {
     if (!validate()) {
+      toast({
+        title: 'Please complete the highlighted fields',
+        description: 'A few required details are missing before you can proceed to payment.',
+        variant: 'destructive',
+      });
       const firstErrorEl = document.querySelector('[data-error="true"]');
       firstErrorEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -662,72 +671,95 @@ const CheckoutPage = () => {
           {/* FIX: min-w-0 prevents grid children from overflowing their column */}
           <div className={cn('min-w-0 w-full', isMobile ? 'space-y-6' : 'space-y-8')}>
 
-            {/* Personal Details */}
-            <section className="w-full">
-              <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground mb-4">
-                Personal Details
-              </h2>
-              <div className="space-y-4 w-full">
-                <div className="flex flex-col gap-4 w-full">
-                  <div data-error={!!errors.firstName} className="w-full">
-                    <Label htmlFor="firstName" className="text-sm text-muted-foreground mb-1.5 block">
-                      First Name
-                    </Label>
-                    <Input
-                      id="firstName"
-                      value={customerData.firstName}
-                      onChange={(e) => handleCustomerChange('firstName', e.target.value)}
-                      placeholder="John"
-                      className={cn(
-                        'h-12 w-full rounded-2xl bg-background border-border text-base',
-                        errors.firstName && 'border-destructive'
+            {/* Personal Details — guests only; logged-in users already have this on file */}
+            {!user && (
+              <section className="w-full">
+                <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground mb-4">
+                  Personal Details
+                </h2>
+                <div className="space-y-4 w-full">
+                  <div className="flex flex-col gap-4 w-full">
+                    <div data-error={!!errors.firstName} className="w-full">
+                      <Label htmlFor="firstName" className="text-sm text-muted-foreground mb-1.5 block">
+                        First Name
+                      </Label>
+                      <Input
+                        id="firstName"
+                        value={customerData.firstName}
+                        onChange={(e) => handleCustomerChange('firstName', e.target.value)}
+                        placeholder="John"
+                        className={cn(
+                          'h-12 w-full rounded-2xl bg-background border-border text-base',
+                          errors.firstName && 'border-destructive'
+                        )}
+                      />
+                      {errors.firstName && (
+                        <p className="text-destructive text-xs mt-1">{errors.firstName}</p>
                       )}
-                    />
-                    {errors.firstName && (
-                      <p className="text-destructive text-xs mt-1">{errors.firstName}</p>
-                    )}
-                  </div>
-                  <div data-error={!!errors.lastName} className="w-full">
-                    <Label htmlFor="lastName" className="text-sm text-muted-foreground mb-1.5 block">
-                      Last Name
-                    </Label>
-                    <Input
-                      id="lastName"
-                      value={customerData.lastName}
-                      onChange={(e) => handleCustomerChange('lastName', e.target.value)}
-                      placeholder="Doe"
-                      className={cn(
-                        'h-12 w-full rounded-2xl bg-background border-border text-base',
-                        errors.lastName && 'border-destructive'
+                    </div>
+                    <div data-error={!!errors.lastName} className="w-full">
+                      <Label htmlFor="lastName" className="text-sm text-muted-foreground mb-1.5 block">
+                        Last Name
+                      </Label>
+                      <Input
+                        id="lastName"
+                        value={customerData.lastName}
+                        onChange={(e) => handleCustomerChange('lastName', e.target.value)}
+                        placeholder="Doe"
+                        className={cn(
+                          'h-12 w-full rounded-2xl bg-background border-border text-base',
+                          errors.lastName && 'border-destructive'
+                        )}
+                      />
+                      {errors.lastName && (
+                        <p className="text-destructive text-xs mt-1">{errors.lastName}</p>
                       )}
-                    />
-                    {errors.lastName && (
-                      <p className="text-destructive text-xs mt-1">{errors.lastName}</p>
-                    )}
+                    </div>
                   </div>
-                </div>
 
-                <div data-error={!!errors.phone} className="w-full">
-                  <Label htmlFor="phone" className="text-sm text-muted-foreground mb-1.5 block">
-                    Call Phone Number
-                  </Label>
-                  <Input
-                    id="phone"
-                    value={customerData.phone}
-                    onChange={(e) => handleCustomerChange('phone', e.target.value)}
-                    placeholder="0712 345 678"
-                    inputMode="tel"
-                    className={cn(
-                      'h-12 w-full rounded-2xl bg-background border-border text-base',
-                      errors.phone && 'border-destructive'
+                  <div data-error={!!errors.email} className="w-full">
+                    <Label htmlFor="email" className="text-sm text-muted-foreground mb-1.5 block">
+                      Email Address
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={customerData.email}
+                      onChange={(e) => handleCustomerChange('email', e.target.value)}
+                      placeholder="you@example.com"
+                      inputMode="email"
+                      className={cn(
+                        'h-12 w-full rounded-2xl bg-background border-border text-base',
+                        errors.email && 'border-destructive'
+                      )}
+                    />
+                    {errors.email && (
+                      <p className="text-destructive text-xs mt-1">{errors.email}</p>
                     )}
-                  />
-                  {errors.phone && (
-                    <p className="text-destructive text-xs mt-1">{errors.phone}</p>
-                  )}
+                  </div>
+
+                  <div data-error={!!errors.phone} className="w-full">
+                    <Label htmlFor="phone" className="text-sm text-muted-foreground mb-1.5 block">
+                      Call Phone Number
+                    </Label>
+                    <Input
+                      id="phone"
+                      value={customerData.phone}
+                      onChange={(e) => handleCustomerChange('phone', e.target.value)}
+                      placeholder="0712 345 678"
+                      inputMode="tel"
+                      className={cn(
+                        'h-12 w-full rounded-2xl bg-background border-border text-base',
+                        errors.phone && 'border-destructive'
+                      )}
+                    />
+                    {errors.phone && (
+                      <p className="text-destructive text-xs mt-1">{errors.phone}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* Delivery Address */}
             <section className="w-full">
@@ -854,9 +886,31 @@ const CheckoutPage = () => {
                             KES {Number(item.product.price).toLocaleString()}
                           </p>
                       </div>
-                      <div className="text-primary font-semibold text-sm flex-shrink-0">
-                        ×{item.quantity}
-                      </div>
+                      {effectiveBuyNowItem && item.id === effectiveBuyNowItem.id ? (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setBuyNowQuantity((q: number) => Math.max(1, q - 1))}
+                            className="h-7 w-7 rounded-full border border-border flex items-center justify-center text-sm font-medium hover:bg-muted transition-colors"
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <span className="text-sm font-semibold w-4 text-center">{buyNowQuantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => setBuyNowQuantity((q: number) => q + 1)}
+                            className="h-7 w-7 rounded-full border border-border flex items-center justify-center text-sm font-medium hover:bg-muted transition-colors"
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-primary font-semibold text-sm flex-shrink-0">
+                          ×{item.quantity}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
