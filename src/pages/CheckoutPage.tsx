@@ -315,9 +315,7 @@ const CheckoutPage = () => {
             discount_amount: calculations.discount,
             delivery_fee: effectiveDeliveryFee,
             tracking_number: currentOrderId.slice(-5).toUpperCase(),
-          })
-          .select('order_id')
-          .single();
+          });
         if (orderError) throw new Error('Failed to create order. Please try again.');
       }
 
