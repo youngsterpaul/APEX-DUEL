@@ -17,7 +17,6 @@ export default function Header() {
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   
-  // Auth Modal State: 'login' | 'signup' | 'forgot' | 'verify' | 'newpassword'
   const [authModal, setAuthModal] = useState<'login' | 'signup' | 'forgot' | 'verify' | 'newpassword' | null>(null);
   
   const [email, setEmail] = useState('');
@@ -40,7 +39,6 @@ export default function Header() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Password validation helper: at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character
   const validatePassword = (pass: string) => {
     const minLength = pass.length >= 8;
     const hasUpper = /[A-Z]/.test(pass);
@@ -64,8 +62,8 @@ export default function Header() {
           throw new Error('Passwords do not match.');
         }
 
-        // Check if username is already taken in profiles table
-        const { data: existingUser, error: checkError } = await supabase
+        // Check if username is already taken
+        const { data: existingUser } = await supabase
           .from('profiles')
           .select('username')
           .eq('username', username)
@@ -75,26 +73,26 @@ export default function Header() {
           throw new Error('Username is already taken. Please choose another one.');
         }
 
-        // Sign up with Supabase Auth (Email as User ID)
+        // Sign up user
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: { username },
-          },
         });
         if (error) throw error;
 
-        // Insert username profile record
         if (data.user) {
-          await supabase.from('profiles').insert([{ id: data.user.id, email, username }]);
+          // Explicitly insert profile row from client side
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([{ id: data.user.id, email, username }]);
+
+          if (profileError) throw profileError;
         }
 
-        setMessage({ type: 'success', text: 'Account created successfully! Check your email for the confirmation code/link.' });
+        setMessage({ type: 'success', text: 'Account created successfully! Check your email for confirmation code/link.' });
         setAuthModal('verify');
       } 
       else if (authModal === 'verify') {
-        // Verify OTP/Token sent via email
         const { error } = await supabase.auth.verifyOtp({
           email,
           token: code,
@@ -124,7 +122,6 @@ export default function Header() {
           throw new Error('Passwords do not match.');
         }
 
-        // Verify recovery token/code and update password
         const { error: otpError } = await supabase.auth.verifyOtp({
           email,
           token: code,
