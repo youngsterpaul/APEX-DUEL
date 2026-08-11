@@ -2,7 +2,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import Header from '../components/Header';
 
 interface Game {
   id: string;
@@ -76,8 +75,6 @@ export default function MarketsPage() {
       <Head>
         <title>ApexDuel | Game Account Marketplace</title>
       </Head>
-
-      <Header />
 
       <section style={{ padding: '50px 20px', textAlign: 'center', maxWidth: 800, margin: '0 auto' }}>
         <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 12 }}>
