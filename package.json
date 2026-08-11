@@ -2,6 +2,7 @@
   "name": "apex-duel",
   "version": "1.0.0",
   "private": true,
+  "description": "Ranked 1v1 gaming arena app connected to Supabase.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
