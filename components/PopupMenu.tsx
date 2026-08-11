@@ -1,146 +1,131 @@
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import PopupMenu from './PopupMenu';
 
-interface NavLink {
-  href: string;
-  label: string;
+interface PopupMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+  user: any;
+  onSignOut: () => void;
 }
 
-const navLinks: NavLink[] = [
-  { href: '/', label: 'Home' },
-  { href: '/categories', label: 'Categories' },
-  { href: '/markets', label: 'Markets' },
-];
-
-export default function Header() {
-  const [user, setUser] = useState<any>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+export default function PopupMenu({ isOpen, onClose, user, onSignOut }: PopupMenuProps) {
+  if (!isOpen) return null;
 
   return (
-    <>
-      <header
-        style={{
-          borderBottom: '1px solid var(--panel-border)',
-          background: 'rgba(10,11,20,0.85)',
-          backdropFilter: 'blur(8px)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-        }}
-      >
-        <div
-          className="container"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: 72,
-            padding: '0 24px',
-          }}
-        >
-          <Link href="/" className="display" style={{ fontSize: 22, fontWeight: 800, textDecoration: 'none', color: '#fff', letterSpacing: '0.02em' }}>
-            APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 18, textTransform: 'uppercase', color: '#fff', letterSpacing: '0.05em' }}>
+            Navigation Menu
+          </h3>
+          <button onClick={onClose} style={closeButtonStyle}>×</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Link href="/" onClick={onClose} style={linkStyle}>
+            Home
+          </Link>
+          <Link href="/categories" onClick={onClose} style={linkStyle}>
+            Categories
+          </Link>
+          <Link href="/markets" onClick={onClose} style={linkStyle}>
+            Markets
+          </Link>
+          <Link href="/challenges" onClick={onClose} style={linkStyle}>
+            Challenges & Competitions
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="desktop-nav" style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                style={{
-                  fontWeight: 600,
-                  fontSize: 14,
-                  color: 'var(--muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  textDecoration: 'none',
-                }}
+          <hr style={{ borderColor: 'var(--panel-border)', margin: '10px 0' }} />
+
+          {user ? (
+            <>
+              <div style={{ fontSize: 13, color: 'var(--muted)', wordBreak: 'break-all' }}>
+                Logged in as: <strong style={{ color: '#fff' }}>{user.email}</strong>
+              </div>
+              <button 
+                onClick={() => { onSignOut(); onClose(); }} 
+                style={signOutButtonStyle}
               >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-            {/* Challenge CTA Button */}
-            <Link
-              href="/challenges"
-              style={{
-                background: 'var(--red)',
-                color: '#fff',
-                padding: '8px 18px',
-                fontWeight: 700,
-                fontSize: 13,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                textDecoration: 'none',
-                borderRadius: 2,
-                transform: 'skewX(-10deg)',
-                display: 'inline-block',
-                boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
-              }}
-            >
-              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <Link href="/auth" onClick={onClose} style={authButtonStyle}>
+              Sign In / Register
             </Link>
-
-            {/* Hamburger / Menu toggle button */}
-            <button
-              onClick={() => setMenuOpen(true)}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--panel-border)',
-                color: '#fff',
-                padding: '8px 10px',
-                cursor: 'pointer',
-                borderRadius: 4,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: 38,
-                width: 42,
-              }}
-              aria-label="Open Menu"
-            >
-              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
-              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
-              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
-            </button>
-          </div>
+          )}
         </div>
-      </header>
-
-      {/* Render modular Popup Menu */}
-      <PopupMenu
-        isOpen={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        user={user}
-        onSignOut={async () => { await supabase.auth.signOut(); }}
-      />
-
-      <style jsx global>{`
-        @media (max-width: 900px) {
-          .desktop-nav {
-            display: none !important;
-          }
-        }
-      `}</style>
-    </>
+      </div>
+    </div>
   );
 }
+
+const overlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  width: '100vw',
+  height: '100vh',
+  background: 'rgba(0, 0, 0, 0.7)',
+  backdropFilter: 'blur(4px)',
+  zIndex: 100,
+  display: 'flex',
+  justifyContent: 'flex-end',
+};
+
+const modalStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: 360,
+  height: '100%',
+  background: '#131627',
+  borderLeft: '1px solid var(--panel-border)',
+  padding: 24,
+  display: 'flex',
+  flexDirection: 'column',
+  boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
+};
+
+const closeButtonStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  color: '#fff',
+  fontSize: 28,
+  cursor: 'pointer',
+  lineHeight: 1,
+};
+
+const linkStyle: React.CSSProperties = {
+  color: '#fff',
+  textDecoration: 'none',
+  fontSize: 15,
+  fontWeight: 600,
+  padding: '10px 12px',
+  borderRadius: 4,
+  background: '#0a0b14',
+  border: '1px solid var(--panel-border)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+};
+
+const authButtonStyle: React.CSSProperties = {
+  background: 'var(--red)',
+  color: '#0a0b14',
+  textAlign: 'center',
+  padding: '12px',
+  fontWeight: 700,
+  borderRadius: 4,
+  textDecoration: 'none',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+};
+
+const signOutButtonStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid #ff4444',
+  color: '#ff4444',
+  padding: '10px',
+  fontWeight: 700,
+  borderRadius: 4,
+  cursor: 'pointer',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+};
