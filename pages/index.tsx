@@ -40,27 +40,16 @@ export default function Home() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch games from database
-      const { data: gamesData, error: gamesError } = await supabase
-        .from('games')
-        .select('*');
-      
-      if (gamesError) throw gamesError;
+      const { data: gamesData } = await supabase.from('games').select('*');
       if (gamesData) setGames(gamesData);
 
-      // Fetch active challenges/competitions from database
-      const { data: challengeData, error: challengeError } = await supabase
+      const { data: challengeData } = await supabase
         .from('challenges')
         .select('*')
         .order('id', { ascending: false });
-
-      if (challengeError) {
-        console.log('Challenges table might need creation');
-      } else if (challengeData) {
-        setChallenges(challengeData);
-      }
+      if (challengeData) setChallenges(challengeData);
     } catch (err) {
-      console.error('Error loading home data:', err);
+      console.error('Error loading data:', err);
     } finally {
       setLoading(false);
     }
@@ -72,7 +61,7 @@ export default function Home() {
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      setCreationMessage({ type: 'error', text: 'You must be logged in to create a challenge or competition.' });
+      setCreationMessage({ type: 'error', text: 'You must be logged in to create a challenge.' });
       return;
     }
 
@@ -106,22 +95,54 @@ export default function Home() {
         <title>ApexDuel | Find Your Match, Prove Your Gaming Skills & Earn</title>
       </Head>
 
+      {/* Single Unified Header */}
       <Header />
 
       {/* Hero Section */}
-      <section style={{ padding: '60px 20px', textAlign: 'center', maxWidth: 900, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 20, letterSpacing: '0.02em', lineHeight: 1.2 }}>
+      <section style={{ padding: '50px 20px', textAlign: 'center', maxWidth: 900, margin: '0 auto' }}>
+        <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 50px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 16, letterSpacing: '0.02em', lineHeight: 1.2 }}>
           Find Your Match, <span style={{ color: 'var(--red)' }}>Prove Your Gaming Skills</span> & Earn
         </h1>
-        <p style={{ color: 'var(--muted)', fontSize: 17, lineHeight: 1.6, maxWidth: 720, margin: '0 auto 32px' }}>
-          Welcome to ApexDuel. Discover games directly from our database, set up multi-player competitions, and join active matches. Pay entry fees securely via automated account transfers protected by our escrow contract logic.
+        <p style={{ color: 'var(--muted)', fontSize: 16, lineHeight: 1.6, maxWidth: 700, margin: '0 auto' }}>
+          Discover games directly from our database, set up multi-player competitions, and join active matches. Pay entry fees securely via automated account transfers protected by our escrow contract logic.
         </p>
       </section>
 
-      {/* Main Container Cards */}
+      {/* BROWSE BY CATEGORY SECTION (Interactive Cards taking user to specific pages) */}
+      <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 40px' }}>
+        <h3 style={{ fontSize: 14, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16, fontWeight: 700 }}>
+          Browse By Category
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+          
+          <Link href="/categories/hotels" style={categoryCardStyle('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80')}>
+            <div style={categoryOverlayStyle}>
+              <span style={{ fontSize: 24, marginBottom: 8 }}>🏢</span>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Hotels</h4>
+            </div>
+          </Link>
+
+          <Link href="/categories/campsites" style={categoryCardStyle('https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=600&q=80')}>
+            <div style={categoryOverlayStyle}>
+              <span style={{ fontSize: 24, marginBottom: 8 }}>⛺</span>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Campsites</h4>
+            </div>
+          </Link>
+
+          <Link href="/categories/tours" style={categoryCardStyle('https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=600&q=80')}>
+            <div style={categoryOverlayStyle}>
+              <span style={{ fontSize: 24, marginBottom: 8 }}>🚙</span>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Tours & Trips</h4>
+            </div>
+          </Link>
+
+        </div>
+      </section>
+
+      {/* MAIN GAMING & CHALLENGE CARDS */}
       <div className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
         
-        {/* CARD 1: Find or Create a Challenge */}
+        {/* CARD 1: Create a Challenge */}
         <div style={cardStyle}>
           <div style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: 16, marginBottom: 20 }}>
             <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Card One</span>
@@ -199,7 +220,7 @@ export default function Home() {
           </form>
         </div>
 
-        {/* CARD 2: Join Organized Competitions & Smart Account Transfers */}
+        {/* CARD 2: Join Organized Competitions */}
         <div style={cardStyle}>
           <div style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: 16, marginBottom: 20 }}>
             <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Card Two</span>
@@ -236,6 +257,29 @@ export default function Home() {
     </div>
   );
 }
+
+const categoryCardStyle = (bgImage: string): React.CSSProperties => ({
+  backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7)), url(${bgImage})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  borderRadius: 8,
+  height: 160,
+  display: 'flex',
+  alignItems: 'flex-end',
+  textDecoration: 'none',
+  overflow: 'hidden',
+  border: '1px solid var(--panel-border)',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
+  transition: 'transform 0.2s ease',
+});
+
+const categoryOverlayStyle: React.CSSProperties = {
+  padding: 20,
+  width: '100%',
+  color: '#fff',
+  display: 'flex',
+  flexDirection: 'column',
+};
 
 const cardStyle: React.CSSProperties = {
   background: '#131627',
