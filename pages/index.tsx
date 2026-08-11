@@ -2,7 +2,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import Header from '../components/Header';
 
 interface Game {
   id: string;
@@ -27,7 +26,6 @@ export default function Home() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Form states for creating a new challenge/competition
   const [selectedGameId, setSelectedGameId] = useState('');
   const [challengeTitle, setChallengeTitle] = useState('');
   const [entryFee, setEntryFee] = useState('');
@@ -96,8 +94,6 @@ export default function Home() {
         <title>ApexDuel | Find Your Match, Prove Your Gaming Skills & Earn</title>
       </Head>
 
-      <Header />
-
       {/* Hero Section */}
       <section style={{ padding: '50px 20px', textAlign: 'center', maxWidth: 900, margin: '0 auto' }}>
         <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 50px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 16, letterSpacing: '0.02em', lineHeight: 1.2 }}>
@@ -114,8 +110,7 @@ export default function Home() {
           Platform Action Hub
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
-          
-          {/* Card 1: Create or Find a Challenge */}
+
           <Link href="/challenges" style={categoryCardStyle('https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
               <span style={{ fontSize: 24, marginBottom: 8 }}>⚔️</span>
@@ -124,7 +119,6 @@ export default function Home() {
             </div>
           </Link>
 
-          {/* Card 2: Sell or Buy Account */}
           <Link href="/markets" style={categoryCardStyle('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
               <span style={{ fontSize: 24, marginBottom: 8 }}>🛒</span>
@@ -133,7 +127,6 @@ export default function Home() {
             </div>
           </Link>
 
-          {/* Card 3: Join Competition or Create a Competition */}
           <Link href="/tournaments" style={categoryCardStyle('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
               <span style={{ fontSize: 24, marginBottom: 8 }}>🏆</span>
@@ -152,7 +145,9 @@ export default function Home() {
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
           {games.length === 0 ? (
-            <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0' }}>Loading game titles and descriptions from database...</div>
+            <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0' }}>
+              {loading ? 'Loading game titles and descriptions from database...' : 'No games found.'}
+            </div>
           ) : (
             games.map((g) => (
               <div key={g.id} style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16 }}>
@@ -169,8 +164,7 @@ export default function Home() {
 
       {/* QUICK CHALLENGE CREATION & LIVE ROOMS */}
       <div className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
-        
-        {/* Challenge Creator Form */}
+
         <div style={cardStyle}>
           <div style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: 16, marginBottom: 20 }}>
             <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quick Launch</span>
@@ -189,9 +183,9 @@ export default function Home() {
           <form onSubmit={handleCreateChallenge} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={labelStyle}>Select Database Game</label>
-              <select 
-                required 
-                value={selectedGameId} 
+              <select
+                required
+                value={selectedGameId}
                 onChange={(e) => setSelectedGameId(e.target.value)}
                 style={inputStyle}
               >
@@ -204,11 +198,11 @@ export default function Home() {
 
             <div>
               <label style={labelStyle}>Competition Title</label>
-              <input 
-                type="text" 
-                required 
-                placeholder="e.g. Weekend Cup 1v1" 
-                value={challengeTitle} 
+              <input
+                type="text"
+                required
+                placeholder="e.g. Weekend Cup 1v1"
+                value={challengeTitle}
                 onChange={(e) => setChallengeTitle(e.target.value)}
                 style={inputStyle}
               />
@@ -217,25 +211,25 @@ export default function Home() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <label style={labelStyle}>Entry Price ($)</label>
-                <input 
-                  type="number" 
-                  min="0" 
-                  step="0.01" 
-                  required 
-                  placeholder="5.00" 
-                  value={entryFee} 
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="5.00"
+                  value={entryFee}
                   onChange={(e) => setEntryFee(e.target.value)}
                   style={inputStyle}
                 />
               </div>
               <div>
                 <label style={labelStyle}>Max Players</label>
-                <input 
-                  type="number" 
-                  min="2" 
-                  max="50" 
-                  required 
-                  value={maxPlayers} 
+                <input
+                  type="number"
+                  min="2"
+                  max="50"
+                  required
+                  value={maxPlayers}
                   onChange={(e) => setMaxPlayers(e.target.value)}
                   style={inputStyle}
                 />
@@ -248,7 +242,6 @@ export default function Home() {
           </form>
         </div>
 
-        {/* Live Competitions List */}
         <div style={cardStyle}>
           <div style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: 16, marginBottom: 20 }}>
             <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Lobbies</span>
