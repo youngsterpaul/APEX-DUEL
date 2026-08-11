@@ -104,38 +104,41 @@ export default function Home() {
           Find Your Match, <span style={{ color: 'var(--red)' }}>Prove Your Gaming Skills</span> & Earn
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 16, lineHeight: 1.6, maxWidth: 700, margin: '0 auto' }}>
-          Discover game descriptions from our database, set up multi-player competitions, and trade accounts securely via our smart account transfer escrow system.
+          Explore game descriptions from our database, create or find challenges, buy and sell accounts securely, and join or host multiplayer competitions with escrow account transfers.
         </p>
       </section>
 
-      {/* GAMING CATEGORY CARDS (Taking users to specific platform features) */}
+      {/* THREE MAIN INTERACTIVE CARDS SECTION */}
       <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 40px' }}>
         <h3 style={{ fontSize: 14, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16, fontWeight: 700 }}>
-          Platform Features & Categories
+          Platform Action Hub
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
           
+          {/* Card 1: Create or Find a Challenge */}
           <Link href="/challenges" style={categoryCardStyle('https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
               <span style={{ fontSize: 24, marginBottom: 8 }}>⚔️</span>
-              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Find a Challenge</h4>
-              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Match with players in 1v1 or team showdowns</p>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>1. Create or Find a Challenge</h4>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Launch or join 1v1 match challenges instantly</p>
             </div>
           </Link>
 
+          {/* Card 2: Sell or Buy Account */}
           <Link href="/markets" style={categoryCardStyle('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
               <span style={{ fontSize: 24, marginBottom: 8 }}>🛒</span>
-              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Account Marketplace</h4>
-              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Buy and sell gaming accounts securely</p>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>2. Sell or Buy Account</h4>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Secure account marketplace protected by escrow</p>
             </div>
           </Link>
 
+          {/* Card 3: Join Competition or Create a Competition */}
           <Link href="/tournaments" style={categoryCardStyle('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
               <span style={{ fontSize: 24, marginBottom: 8 }}>🏆</span>
-              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Create Tournaments</h4>
-              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Host multi-player tournaments with prize pools</p>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>3. Join or Create a Competition</h4>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Participate in or host multi-player tournaments</p>
             </div>
           </Link>
 
@@ -164,17 +167,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* MAIN GAMING & CHALLENGE CARDS */}
+      {/* QUICK CHALLENGE CREATION & LIVE ROOMS */}
       <div className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
         
-        {/* CARD 1: Create a Challenge */}
+        {/* Challenge Creator Form */}
         <div style={cardStyle}>
           <div style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: 16, marginBottom: 20 }}>
-            <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Card One</span>
+            <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quick Launch</span>
             <h2 style={{ fontSize: 22, marginTop: 4, textTransform: 'uppercase' }}>Create a Challenge</h2>
           </div>
           <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
-            Pick any game from our database, establish multi-player configurations, set your stakes, and launch your room.
+            Pick any database game, set your stakes, and launch your room.
           </p>
 
           {creationMessage && (
@@ -245,20 +248,20 @@ export default function Home() {
           </form>
         </div>
 
-        {/* CARD 2: Join Organized Competitions */}
+        {/* Live Competitions List */}
         <div style={cardStyle}>
           <div style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: 16, marginBottom: 20 }}>
-            <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Card Two</span>
-            <h2 style={{ fontSize: 22, marginTop: 4, textTransform: 'uppercase' }}>Join Organized Competitions</h2>
+            <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Lobbies</span>
+            <h2 style={{ fontSize: 22, marginTop: 4, textTransform: 'uppercase' }}>Join Active Competitions</h2>
           </div>
           <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
-            Browse live player rooms. Pay game entry prices securely through standard account transfers backed by our built-in smart escrow protocol.
+            Browse open rooms and join matches backed by account transfer escrow.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 390, overflowY: 'auto' }}>
             {challenges.length === 0 ? (
               <div style={{ color: 'var(--muted)', fontSize: 14, textAlign: 'center', padding: '40px 0' }}>
-                No competitions found. Create one using Card One!
+                No active competitions found. Create one using the form!
               </div>
             ) : (
               challenges.map((c) => (
