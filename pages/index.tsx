@@ -100,7 +100,7 @@ export default function Home() {
           Find Your Match, <span style={{ color: 'var(--red)' }}>Prove Your Gaming Skills</span> & Earn
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 16, lineHeight: 1.6, maxWidth: 700, margin: '0 auto' }}>
-          Explore game descriptions from our database, create or find challenges, buy and sell accounts securely, and join or host multiplayer competitions with escrow account transfers.
+        Create or find challenges, buy and sell accounts securely, and join or host multiplayer competitions with escrow account transfers.
         </p>
       </section>
 
