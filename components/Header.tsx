@@ -17,26 +17,38 @@ export default function Header() {
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   
-  // Auth Modal State ('login' | 'signup' | 'forgot' | null)
-  const [authModal, setAuthModal] = useState<'login' | 'signup' | 'forgot' | null>(null);
+  // Auth Modal State: 'login' | 'signup' | 'forgot' | 'verify' | 'newpassword'
+  const [authModal, setAuthModal] = useState<'login' | 'signup' | 'forgot' | 'verify' | 'newpassword' | null>(null);
+  
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Password validation helper: at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character
+  const validatePassword = (pass: string) => {
+    const minLength = pass.length >= 8;
+    const hasUpper = /[A-Z]/.test(pass);
+    const hasLower = /[a-z]/.test(pass);
+    const hasNum = /[0-9]/.test(pass);
+    const hasSpecial = /[^A-Za-z0-9]/.test(pass);
+    return minLength && hasUpper && hasLower && hasNum && hasSpecial;
+  };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,20 +57,86 @@ export default function Header() {
 
     try {
       if (authModal === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password });
+        if (!validatePassword(password)) {
+          throw new Error('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.');
+        }
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match.');
+        }
+
+        // Check if username is already taken in profiles table
+        const { data: existingUser, error: checkError } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('username', username)
+          .single();
+
+        if (existingUser) {
+          throw new Error('Username is already taken. Please choose another one.');
+        }
+
+        // Sign up with Supabase Auth (Email as User ID)
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { username },
+          },
+        });
         if (error) throw error;
-        setMessage({ type: 'success', text: 'Signup successful! Check your email for confirmation if required.' });
-      } else if (authModal === 'login') {
+
+        // Insert username profile record
+        if (data.user) {
+          await supabase.from('profiles').insert([{ id: data.user.id, email, username }]);
+        }
+
+        setMessage({ type: 'success', text: 'Account created successfully! Check your email for the confirmation code/link.' });
+        setAuthModal('verify');
+      } 
+      else if (authModal === 'verify') {
+        // Verify OTP/Token sent via email
+        const { error } = await supabase.auth.verifyOtp({
+          email,
+          token: code,
+          type: 'signup',
+        });
+        if (error) throw error;
+        setMessage({ type: 'success', text: 'Email verified successfully! You can now log in.' });
+        setAuthModal('login');
+      }
+      else if (authModal === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         setAuthModal(null);
         setMenuOpen(false);
-      } else if (authModal === 'forgot') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/`,
-        });
+      } 
+      else if (authModal === 'forgot') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
         if (error) throw error;
-        setMessage({ type: 'success', text: 'Password reset link sent to your email!' });
+        setMessage({ type: 'success', text: 'An 8-digit verification code/link has been sent to your email.' });
+        setAuthModal('newpassword');
+      }
+      else if (authModal === 'newpassword') {
+        if (!validatePassword(password)) {
+          throw new Error('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.');
+        }
+        if (password !== confirmPassword) {
+          throw new Error('Passwords do not match.');
+        }
+
+        // Verify recovery token/code and update password
+        const { error: otpError } = await supabase.auth.verifyOtp({
+          email,
+          token: code,
+          type: 'recovery',
+        });
+        if (otpError) throw otpError;
+
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) throw updateError;
+
+        setMessage({ type: 'success', text: 'Password successfully changed! Please log in with your new password.' });
+        setAuthModal('login');
       }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'An error occurred during authentication.' });
@@ -136,7 +214,6 @@ export default function Header() {
               Challenge
             </Link>
 
-            {/* Hamburger / Menu toggle button */}
             <button
               onClick={() => setMenuOpen(true)}
               style={{
@@ -250,7 +327,7 @@ export default function Header() {
         </div>
       )}
 
-      {/* Authentication Modal (Login / Sign Up / Forgot Password) */}
+      {/* Authentication Modal */}
       {authModal && (
         <div
           style={{
@@ -284,7 +361,9 @@ export default function Header() {
               <h3 style={{ margin: 0, color: '#fff', textTransform: 'uppercase' }}>
                 {authModal === 'login' && 'Database Login'}
                 {authModal === 'signup' && 'Create Account'}
+                {authModal === 'verify' && 'Verify Code'}
                 {authModal === 'forgot' && 'Reset Password'}
+                {authModal === 'newpassword' && 'Change Password'}
               </h3>
               <button
                 onClick={() => setAuthModal(null)}
@@ -311,19 +390,80 @@ export default function Header() {
             )}
 
             <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={inputStyle}
-                  placeholder="name@example.com"
-                />
-              </div>
+              {authModal === 'signup' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Unique Username</label>
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    style={inputStyle}
+                    placeholder="e.g. apex_player"
+                  />
+                </div>
+              )}
 
-              {authModal !== 'forgot' && (
+              {authModal !== 'verify' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Email Address (User ID)</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    style={inputStyle}
+                    placeholder="name@example.com"
+                  />
+                </div>
+              )}
+
+              {(authModal === 'verify' || authModal === 'newpassword') && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>8-Digit Code Received via Email</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={8}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Enter code"
+                  />
+                </div>
+              )}
+
+              {(authModal === 'signup' || authModal === 'newpassword') && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
+                      Password (Min 8 chars: Upper, Lower, Number, Special)
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      style={inputStyle}
+                      placeholder="••••••••"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Confirm Password</label>
+                    <input
+                      type="password"
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      style={inputStyle}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </>
+              )}
+
+              {authModal === 'login' && (
                 <div>
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Password</label>
                   <input
@@ -352,7 +492,11 @@ export default function Header() {
                   marginTop: 8,
                 }}
               >
-                {loading ? 'Processing...' : authModal === 'login' ? 'Sign In' : authModal === 'signup' ? 'Sign Up' : 'Send Reset Link'}
+                {loading ? 'Processing...' : 
+                 authModal === 'login' ? 'Sign In' : 
+                 authModal === 'signup' ? 'Create Account' : 
+                 authModal === 'verify' ? 'Confirm Code' :
+                 authModal === 'forgot' ? 'Send Code' : 'Update Password'}
               </button>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 8 }}>
@@ -369,6 +513,11 @@ export default function Header() {
                 {authModal === 'signup' && (
                   <button type="button" onClick={() => setAuthModal('login')} style={linkButtonStyle}>
                     Already have an account? Sign In
+                  </button>
+                )}
+                {authModal === 'verify' && (
+                  <button type="button" onClick={() => setAuthModal('login')} style={linkButtonStyle}>
+                    Back to Login
                   </button>
                 )}
                 {authModal === 'forgot' && (
