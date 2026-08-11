@@ -8,6 +8,7 @@ interface Game {
   id: string;
   title: string;
   category: string;
+  description?: string;
   image_url?: string;
 }
 
@@ -95,7 +96,6 @@ export default function Home() {
         <title>ApexDuel | Find Your Match, Prove Your Gaming Skills & Earn</title>
       </Head>
 
-      {/* Single Unified Header */}
       <Header />
 
       {/* Hero Section */}
@@ -104,38 +104,63 @@ export default function Home() {
           Find Your Match, <span style={{ color: 'var(--red)' }}>Prove Your Gaming Skills</span> & Earn
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 16, lineHeight: 1.6, maxWidth: 700, margin: '0 auto' }}>
-          Discover games directly from our database, set up multi-player competitions, and join active matches. Pay entry fees securely via automated account transfers protected by our escrow contract logic.
+          Discover game descriptions from our database, set up multi-player competitions, and trade accounts securely via our smart account transfer escrow system.
         </p>
       </section>
 
-      {/* BROWSE BY CATEGORY SECTION (Interactive Cards taking user to specific pages) */}
+      {/* GAMING CATEGORY CARDS (Taking users to specific platform features) */}
       <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 40px' }}>
         <h3 style={{ fontSize: 14, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16, fontWeight: 700 }}>
-          Browse By Category
+          Platform Features & Categories
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
           
-          <Link href="/categories/hotels" style={categoryCardStyle('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80')}>
+          <Link href="/challenges" style={categoryCardStyle('https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
-              <span style={{ fontSize: 24, marginBottom: 8 }}>🏢</span>
-              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Hotels</h4>
+              <span style={{ fontSize: 24, marginBottom: 8 }}>⚔️</span>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Find a Challenge</h4>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Match with players in 1v1 or team showdowns</p>
             </div>
           </Link>
 
-          <Link href="/categories/campsites" style={categoryCardStyle('https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=600&q=80')}>
+          <Link href="/markets" style={categoryCardStyle('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
-              <span style={{ fontSize: 24, marginBottom: 8 }}>⛺</span>
-              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Campsites</h4>
+              <span style={{ fontSize: 24, marginBottom: 8 }}>🛒</span>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Account Marketplace</h4>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Buy and sell gaming accounts securely</p>
             </div>
           </Link>
 
-          <Link href="/categories/tours" style={categoryCardStyle('https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=600&q=80')}>
+          <Link href="/tournaments" style={categoryCardStyle('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
-              <span style={{ fontSize: 24, marginBottom: 8 }}>🚙</span>
-              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Tours & Trips</h4>
+              <span style={{ fontSize: 24, marginBottom: 8 }}>🏆</span>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>Create Tournaments</h4>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>Host multi-player tournaments with prize pools</p>
             </div>
           </Link>
 
+        </div>
+      </section>
+
+      {/* GAMES DATABASE DESCRIPTIONS SECTION */}
+      <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 40px' }}>
+        <h3 style={{ fontSize: 14, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16, fontWeight: 700 }}>
+          Supported Games & Descriptions
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+          {games.length === 0 ? (
+            <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0' }}>Loading game titles and descriptions from database...</div>
+          ) : (
+            games.map((g) => (
+              <div key={g.id} style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16 }}>
+                <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase' }}>{g.category}</span>
+                <h4 style={{ margin: '6px 0 8px', fontSize: 16, color: '#fff' }}>{g.title}</h4>
+                <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0, lineHeight: 1.4 }}>
+                  {g.description || 'Compete in organized matches, climb rankings, and win cash prizes through secure smart account transfer escrows.'}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -259,22 +284,21 @@ export default function Home() {
 }
 
 const categoryCardStyle = (bgImage: string): React.CSSProperties => ({
-  backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7)), url(${bgImage})`,
+  backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8)), url(${bgImage})`,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   borderRadius: 8,
-  height: 160,
+  height: 140,
   display: 'flex',
   alignItems: 'flex-end',
   textDecoration: 'none',
   overflow: 'hidden',
   border: '1px solid var(--panel-border)',
   boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
-  transition: 'transform 0.2s ease',
 });
 
 const categoryOverlayStyle: React.CSSProperties = {
-  padding: 20,
+  padding: 16,
   width: '100%',
   color: '#fff',
   display: 'flex',
