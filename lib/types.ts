@@ -19,7 +19,6 @@ export interface Duel {
   winner_id: string | null;
   scheduled_at: string | null;
   created_at: string;
-  // Joined fields (present when selecting with player1:player1_id(username) etc.)
   player1?: { username: string };
   player2?: { username: string };
 }
