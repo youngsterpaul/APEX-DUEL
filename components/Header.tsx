@@ -12,8 +12,6 @@ const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/categories', label: 'Categories' },
   { href: '/markets', label: 'Markets' },
-  { href: '/duels', label: 'Duels' },
-  { href: '/leaderboard', label: 'Leaderboard' },
 ];
 
 export default function Header() {
@@ -32,10 +30,6 @@ export default function Header() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-  };
-
   return (
     <>
       <header
@@ -46,6 +40,7 @@ export default function Header() {
           position: 'sticky',
           top: 0,
           zIndex: 50,
+          width: '100%',
         }}
       >
         <div
@@ -56,13 +51,14 @@ export default function Header() {
             justifyContent: 'space-between',
             height: 72,
             padding: '0 24px',
+            maxWidth: '100%',
           }}
         >
-          <Link href="/" className="display" style={{ fontSize: 22, fontWeight: 800, textDecoration: 'none', color: '#fff' }}>
+          <Link href="/" className="display" style={{ fontSize: 22, fontWeight: 800, textDecoration: 'none', color: '#fff', letterSpacing: '0.02em' }}>
             APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
           </Link>
 
-          {/* Desktop Navigation (Hidden on small screens via media query / responsive styling, or handled cleanly) */}
+          {/* Desktop Navigation */}
           <nav className="desktop-nav" style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
             {navLinks.map((link) => (
               <Link
@@ -70,7 +66,7 @@ export default function Header() {
                 href={link.href}
                 style={{
                   fontWeight: 600,
-                  fontSize: 15,
+                  fontSize: 14,
                   color: 'var(--muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
@@ -82,23 +78,26 @@ export default function Header() {
             ))}
           </nav>
 
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            {/* Challenge CTA Button */}
             <Link
-              href="/duels"
-              className="mono"
+              href="/challenges"
               style={{
                 background: 'var(--red)',
-                color: '#0a0b14',
-                padding: '10px 20px',
+                color: '#fff',
+                padding: '8px 18px',
                 fontWeight: 700,
                 fontSize: 13,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
                 textDecoration: 'none',
+                borderRadius: 2,
+                transform: 'skewX(-10deg)',
+                display: 'inline-block',
+                boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
               }}
             >
-              Challenge
+              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
             </Link>
 
             {/* Hamburger / Menu toggle button */}
@@ -108,7 +107,7 @@ export default function Header() {
                 background: 'transparent',
                 border: '1px solid var(--panel-border)',
                 color: '#fff',
-                padding: '8px 12px',
+                padding: '8px 10px',
                 cursor: 'pointer',
                 borderRadius: 4,
                 display: 'flex',
@@ -116,26 +115,27 @@ export default function Header() {
                 gap: 4,
                 justifyContent: 'center',
                 alignItems: 'center',
+                height: 38,
+                width: 42,
               }}
               aria-label="Open Menu"
             >
-              <span style={{ width: 20, height: 2, background: '#fff' }}></span>
-              <span style={{ width: 20, height: 2, background: '#fff' }}></span>
-              <span style={{ width: 20, height: 2, background: '#fff' }}></span>
+              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
+              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
+              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Render modular Popup Menu (Handles small screen navigation + Games, Markets, Events, Challenges, Login, Sign Out) */}
+      {/* Render modular Popup Menu */}
       <PopupMenu
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
         user={user}
-        onSignOut={handleSignOut}
+        onSignOut={async () => { await supabase.auth.signOut(); }}
       />
 
-      {/* Responsive helper styles to hide full nav on mobile and show in popup */}
       <style jsx global>{`
         @media (max-width: 900px) {
           .desktop-nav {
