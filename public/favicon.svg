@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <defs>
-    <clipPath id="roundedClip">
-      <rect x="16" y="16" width="224" height="224" rx="56" ry="56" />
-    </clipPath>
-  </defs>
-  <rect x="16" y="16" width="224" height="224" rx="56" ry="56" fill="transparent" />
-  <image href="/icon.png" x="16" y="16" width="224" height="224" preserveAspectRatio="xMidYMid meet" clip-path="url(#roundedClip)" />
-</svg>
