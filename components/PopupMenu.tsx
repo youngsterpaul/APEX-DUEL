@@ -145,20 +145,25 @@ export default function PopupMenu({ isOpen, onClose, user, onSignOut }: PopupMen
             display: 'flex',
             flexDirection: 'column',
             boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
+            overflowY: 'auto',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
             <span style={{ fontWeight: 800, fontSize: 18, color: '#fff' }}>MENU</span>
             <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer' }}>
               &times;
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+            {/* Navigation links for small screens & full menu */}
+            <Link href="/" onClick={onClose} style={menuItemStyle}>Home</Link>
+            <Link href="/categories" onClick={onClose} style={menuItemStyle}>Categories</Link>
             <Link href="/games" onClick={onClose} style={menuItemStyle}>Games</Link>
             <Link href="/markets" onClick={onClose} style={menuItemStyle}>Markets</Link>
             <Link href="/events" onClick={onClose} style={menuItemStyle}>Events</Link>
             <Link href="/duels" onClick={onClose} style={menuItemStyle}>Challenges</Link>
+            <Link href="/leaderboard" onClick={onClose} style={menuItemStyle}>Leaderboard</Link>
 
             <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '10px 0' }} />
 
@@ -215,6 +220,7 @@ export default function PopupMenu({ isOpen, onClose, user, onSignOut }: PopupMen
             alignItems: 'center',
             justifyContent: 'center',
             backdropFilter: 'blur(5px)',
+            padding: 16,
           }}
           onClick={() => setAuthModal(null)}
         >
@@ -228,6 +234,8 @@ export default function PopupMenu({ isOpen, onClose, user, onSignOut }: PopupMen
               maxWidth: 400,
               borderRadius: 8,
               boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -396,7 +404,7 @@ export default function PopupMenu({ isOpen, onClose, user, onSignOut }: PopupMen
                  authModal === 'forgot' ? 'Send Code' : 'Update Password'}
               </button>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 8, flexWrap: 'wrap', gap: 8 }}>
                 {authModal === 'login' && (
                   <>
                     <button type="button" onClick={() => setAuthModal('forgot')} style={linkButtonStyle}>
@@ -434,10 +442,10 @@ export default function PopupMenu({ isOpen, onClose, user, onSignOut }: PopupMen
 const menuItemStyle: React.CSSProperties = {
   color: '#fff',
   textDecoration: 'none',
-  fontSize: 16,
+  fontSize: 15,
   fontWeight: 600,
   textTransform: 'uppercase',
-  padding: '10px 0',
+  padding: '8px 0',
   borderBottom: '1px solid rgba(255,255,255,0.05)',
 };
 

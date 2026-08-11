@@ -10,6 +10,8 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
+  { href: '/categories', label: 'Categories' },
+  { href: '/markets', label: 'Markets' },
   { href: '/duels', label: 'Duels' },
   { href: '/leaderboard', label: 'Leaderboard' },
 ];
@@ -60,14 +62,15 @@ export default function Header() {
             APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
           </Link>
 
-          <nav style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
+          {/* Desktop Navigation (Hidden on small screens via media query / responsive styling, or handled cleanly) */}
+          <nav className="desktop-nav" style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 style={{
                   fontWeight: 600,
-                  fontSize: 16,
+                  fontSize: 15,
                   color: 'var(--muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
@@ -98,6 +101,7 @@ export default function Header() {
               Challenge
             </Link>
 
+            {/* Hamburger / Menu toggle button */}
             <button
               onClick={() => setMenuOpen(true)}
               style={{
@@ -123,13 +127,22 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Render modular Popup Menu */}
+      {/* Render modular Popup Menu (Handles small screen navigation + Games, Markets, Events, Challenges, Login, Sign Out) */}
       <PopupMenu
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
         user={user}
         onSignOut={handleSignOut}
       />
+
+      {/* Responsive helper styles to hide full nav on mobile and show in popup */}
+      <style jsx global>{`
+        @media (max-width: 900px) {
+          .desktop-nav {
+            display: none !important;
+          }
+        }
+      `}</style>
     </>
   );
 }
