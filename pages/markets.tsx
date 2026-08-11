@@ -23,7 +23,6 @@ export default function MarketsPage() {
   useEffect(() => {
     fetchMarketGames();
 
-    // Close suggestions dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
@@ -36,15 +35,29 @@ export default function MarketsPage() {
   const fetchMarketGames = async () => {
     setLoading(true);
     try {
-      // Fetch games from database where hidden is false or null
       const { data: gamesData, error } = await supabase
         .from('games')
         .select('*')
         .or('hidden.eq.false,hidden.is.null');
 
       if (error) throw error;
+
       if (gamesData) {
-        setGames(gamesData);
+        const formattedGames = gamesData.map((game) => {
+          let resolvedImageUrl = game.image_url;
+          if (game.image_url && !game.image_url.startsWith('http')) {
+            const { data: publicUrlData } = supabase.storage
+              .from('game-covers')
+              .getPublicUrl(game.image_url);
+            resolvedImageUrl = publicUrlData.publicUrl;
+          }
+          return {
+            ...game,
+            image_url: resolvedImageUrl
+          };
+        });
+
+        setGames(formattedGames);
       }
     } catch (err) {
       console.error('Error loading games from database:', err);
@@ -53,7 +66,6 @@ export default function MarketsPage() {
     }
   };
 
-  // Filter games based on search query input
   const filteredGames = games.filter((g) =>
     g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     g.category.toLowerCase().includes(searchQuery.toLowerCase())
@@ -67,16 +79,14 @@ export default function MarketsPage() {
 
       <Header />
 
-      {/* Hero Header & Search Bar with Auto-Suggestions */}
       <section style={{ padding: '50px 20px', textAlign: 'center', maxWidth: 800, margin: '0 auto' }}>
         <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 12 }}>
           Game Account <span style={{ color: 'var(--red)' }}>Marketplace</span>
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 15, lineHeight: 1.5, marginBottom: 28 }}>
-          Explore games fetched directly from our database. Search with instant suggestions, choose a game, and view accounts available for sale.
+          Explore games fetched directly from our database with bucket storage images. Search with instant suggestions, select a game, and view accounts available for sale.
         </p>
 
-        {/* Search Bar with Dropdown Suggestions */}
         <div ref={searchRef} style={{ maxWidth: 600, margin: '0 auto', position: 'relative' }}>
           <div style={{ position: 'relative' }}>
             <input 
@@ -105,7 +115,6 @@ export default function MarketsPage() {
             </span>
           </div>
 
-          {/* Suggestions Dropdown List */}
           {showSuggestions && searchQuery.trim().length > 0 && (
             <div style={{
               position: 'absolute',
@@ -159,7 +168,6 @@ export default function MarketsPage() {
         </div>
       </section>
 
-      {/* Database Games Grid (Fixed Card Sizes, Responsive Width, Clean Cards without Account Badges) */}
       <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 80px' }}>
         <h3 style={{ fontSize: 14, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 20, fontWeight: 700 }}>
           Database Games Catalog ({filteredGames.length})
@@ -193,7 +201,6 @@ export default function MarketsPage() {
                   boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
                 }}
               >
-                {/* Game Image Card (Clean image display without account counts) */}
                 <div style={{ height: 160, width: '100%', background: '#0a0b14' }}>
                   <img 
                     src={game.image_url || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80'} 
@@ -202,7 +209,6 @@ export default function MarketsPage() {
                   />
                 </div>
 
-                {/* Game Details & Action Button */}
                 <div style={{ padding: 18, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>
                     {game.category}
