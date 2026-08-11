@@ -1,0 +1,61 @@
+/* ==========================================
+   APEXDUEL - COMPLETE GLOBAL THEME (globals.css)
+   ================================---------- */
+
+:root {
+  --bg: #0a0b14;
+  --panel: #131627;
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --red: #ff334b;
+  --muted: #8b9bb4;
+  --text: #ffffff;
+  --accent: #00ff64;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Typography Helpers */
+.display {
+  font-family: inherit;
+  letter-spacing: -0.02em;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--panel-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
