@@ -7,8 +7,8 @@ interface Game {
   id: string;
   title: string;
   category: string;
-  description?: string;
-  image_url?: string;
+  description?: string | null;
+  image_url?: string | null;
 }
 
 interface Challenge {
@@ -39,7 +39,10 @@ export default function Home() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: gamesData } = await supabase.from('games').select('*');
+      const { data: gamesData } = await supabase
+        .from('games')
+        .select('*')
+        .or('hidden.is.null,hidden.eq.false');
       if (gamesData) setGames(gamesData);
 
       const { data: challengeData } = await supabase
@@ -150,12 +153,14 @@ export default function Home() {
             </div>
           ) : (
             games.map((g) => (
-              <div key={g.id} style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16 }}>
-                <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase' }}>{g.category}</span>
-                <h4 style={{ margin: '6px 0 8px', fontSize: 16, color: '#fff' }}>{g.title}</h4>
-                <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0, lineHeight: 1.4 }}>
-                  {g.description || 'Compete in organized matches, climb rankings, and win cash prizes through secure smart account transfer escrows.'}
-                </p>
+              <div key={g.id} style={gameCardStyle(g.image_url)}>
+                <div style={gameCardOverlayStyle}>
+                  <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase' }}>{g.category}</span>
+                  <h4 style={{ margin: '6px 0 8px', fontSize: 16, color: '#fff' }}>{g.title}</h4>
+                  <p style={{ fontSize: 13, color: '#d8dae0', margin: 0, lineHeight: 1.4 }}>
+                    {g.description || 'Compete in organized matches, climb rankings, and win cash prizes through secure smart account transfer escrows.'}
+                  </p>
+                </div>
               </div>
             ))
           )}
@@ -299,6 +304,29 @@ const categoryOverlayStyle: React.CSSProperties = {
   color: '#fff',
   display: 'flex',
   flexDirection: 'column',
+};
+
+const gameCardStyle = (imageUrl?: string | null): React.CSSProperties => ({
+  position: 'relative',
+  minHeight: 170,
+  borderRadius: 8,
+  overflow: 'hidden',
+  border: '1px solid var(--panel-border)',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
+  display: 'flex',
+  alignItems: 'flex-end',
+  ...(imageUrl
+    ? {
+        backgroundImage: `linear-gradient(180deg, rgba(10,11,20,0.35) 0%, rgba(10,11,20,0.75) 65%, rgba(10,11,20,0.92) 100%), url(${imageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : { background: '#131627' }),
+});
+
+const gameCardOverlayStyle: React.CSSProperties = {
+  padding: 16,
+  width: '100%',
 };
 
 const cardStyle: React.CSSProperties = {
