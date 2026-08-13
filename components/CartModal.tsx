@@ -1,77 +1,118 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from './supabaseClient';
-import { CartItem } from './types';
+import { useCart } from '../lib/cartContext';
 
-interface CartContextValue {
-  items: CartItem[];
-  count: number;
-  loading: boolean;
-  addToCart: (listingId: string) => Promise<{ error?: string }>;
-  removeFromCart: (cartItemId: string) => Promise<void>;
-  refresh: () => Promise<void>;
+interface CartModalProps {
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const CartContext = createContext<CartContextValue>({
-  items: [],
-  count: 0,
-  loading: true,
-  addToCart: async () => ({}),
-  removeFromCart: async () => {},
-  refresh: async () => {},
-});
+export default function CartModal({ isOpen, onClose }: CartModalProps) {
+  const { items, loading, removeFromCart } = useCart();
+  if (!isOpen) return null;
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-    const { data, error } = await supabase
-      .from('cart_items')
-      .select('*, listing:account_listings(*)')
-      .eq('buyer_id', session.user.id)
-      .order('added_at', { ascending: false });
-    if (!error && data) setItems(data as any);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    refresh();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => refresh());
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  const addToCart = async (listingId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return { error: 'Sign in to add items to your cart.' };
-    const { error } = await supabase
-      .from('cart_items')
-      .insert({ buyer_id: session.user.id, listing_id: listingId });
-    if (error) {
-      if (error.code === '23505') return { error: 'Already in your cart.' };
-      return { error: error.message };
-    }
-    await refresh();
-    return {};
-  };
-
-  const removeFromCart = async (cartItemId: string) => {
-    await supabase.from('cart_items').delete().eq('id', cartItemId);
-    await refresh();
-  };
+  const total = items.reduce((sum, i) => sum + (i.listing?.price || 0), 0);
 
   return (
-    <CartContext.Provider value={{ items, count: items.length, loading, addToCart, removeFromCart, refresh }}>
-      {children}
-    </CartContext.Provider>
-  );
-}
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(10,11,20,0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 100,
+        display: 'flex',
+        justifyContent: 'flex-end',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 380,
+          maxWidth: '90vw',
+          height: '100%',
+          background: '#0f1120',
+          borderLeft: '1px solid var(--panel-border)',
+          padding: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 20,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="display" style={{ fontSize: 18, fontWeight: 800, textTransform: 'uppercase' }}>
+            Your Cart
+          </span>
+          <button
+            onClick={onClose}
+            aria-label="Close cart"
+            style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
 
-export function useCart() {
-  return useContext(CartContext);
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {loading ? (
+            <p style={{ color: 'var(--muted)', fontSize: 14 }}>Loading…</p>
+          ) : items.length === 0 ? (
+            <p style={{ color: 'var(--muted)', fontSize: 14, textAlign: 'center', marginTop: 40 }}>
+              Your cart is empty.
+            </p>
+          ) : (
+            items.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  background: '#131627',
+                  border: '1px solid var(--panel-border)',
+                  borderRadius: 8,
+                  padding: 12,
+                }}
+              >
+                <img
+                  src={item.listing?.photos?.[0] || ''}
+                  alt=""
+                  style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 6, background: '#0a0b14', flexShrink: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.listing?.in_game_username}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--red)', textTransform: 'uppercase' }}>{item.listing?.rating}</div>
+                </div>
+                <span style={{ fontWeight: 800, fontSize: 14, flexShrink: 0 }}>${item.listing?.price.toFixed(2)}</span>
+                <button
+                  onClick={() => removeFromCart(item.id)}
+                  aria-label="Remove from cart"
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--panel-border)',
+                    color: '#ff4444',
+                    borderRadius: 4,
+                    width: 26,
+                    height: 26,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {items.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--panel-border)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>Total</span>
+            <span style={{ fontSize: 20, fontWeight: 900 }}>${total.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
