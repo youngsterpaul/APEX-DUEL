@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useCart } from '../lib/cartContext';
 import PopupMenu from './PopupMenu';
+import CartModal from './CartModal';
 
 interface NavLink {
   href: string;
@@ -18,6 +19,7 @@ const navLinks: NavLink[] = [
 export default function Header() {
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const { count } = useCart();
 
   useEffect(() => {
@@ -82,8 +84,8 @@ export default function Header() {
 
           <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
             {/* Cart */}
-            <Link
-              href="/cart"
+            <button
+              onClick={() => setCartOpen(true)}
               aria-label="Cart"
               style={{
                 position: 'relative',
@@ -94,9 +96,10 @@ export default function Header() {
                 height: 38,
                 borderRadius: 4,
                 border: '1px solid var(--panel-border)',
+                background: 'transparent',
                 color: '#fff',
-                textDecoration: 'none',
                 fontSize: 16,
+                cursor: 'pointer',
               }}
             >
               🛒
@@ -122,7 +125,7 @@ export default function Header() {
                   {count}
                 </span>
               )}
-            </Link>
+            </button>
 
             {/* Challenge CTA Button */}
             <Link
@@ -180,6 +183,9 @@ export default function Header() {
         user={user}
         onSignOut={async () => { await supabase.auth.signOut(); }}
       />
+
+      {/* Cart popup */}
+      <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} />
 
       <style jsx global>{`
         @media (max-width: 900px) {
