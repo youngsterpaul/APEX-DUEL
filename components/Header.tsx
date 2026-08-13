@@ -12,7 +12,7 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
-  { href: '/categories', label: 'Categories' },
+  { href: '/tournaments', label: 'Tournaments' },
   { href: '/markets', label: 'Markets' },
 ];
 
@@ -127,9 +127,9 @@ export default function Header() {
               )}
             </button>
 
-            {/* Challenge CTA Button */}
+            {/* Create Challenge CTA Button */}
             <Link
-              href="/challenges"
+              href="/challenges/create"
               style={{
                 background: 'var(--red)',
                 color: '#fff',
@@ -145,7 +145,7 @@ export default function Header() {
                 boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
               }}
             >
-              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
+              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Create Challenge</span>
             </Link>
 
             {/* Hamburger / Menu toggle button */}
