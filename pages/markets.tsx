@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -48,8 +49,9 @@ export default function Markets() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
             {games.map((g) => (
-              <div
+              <Link
                 key={g.id}
+                href={`/markets/${g.id}`}
                 style={{
                   position: 'relative',
                   height: 220,
@@ -65,6 +67,10 @@ export default function Markets() {
                   flexDirection: 'column',
                   justifyContent: 'flex-end',
                   padding: 18,
+                  textDecoration: 'none',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
                 }}
               >
                 <span
@@ -81,7 +87,7 @@ export default function Markets() {
                     {g.description}
                   </p>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         )}
