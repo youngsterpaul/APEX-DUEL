@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 interface Game {
-  id: string;
+  id: string; // Native slug ID from DB (e.g., "valorant-4029")
   title: string;
   category: string;
   description?: string;
@@ -29,23 +29,6 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
-
-  /**
-   * Generates a URL slug using the game's name/title and a 4-digit code derived from the DB ID.
-   * Example: "Apex Legends" + "a1b2c3d4..." -> "apex-legends-a1b2"
-   */
-  const getGameSlug = (title: string, id: string) => {
-    const formattedTitle = title
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-');         // Replace spaces with hyphens
-
-    // Extract first 4 characters/digits from the database ID
-    const fourDigitCode = id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4);
-
-    return `${formattedTitle}-${fourDigitCode}`;
   };
 
   return (
@@ -112,7 +95,7 @@ export default function Home() {
             games.map((g) => (
               <Link
                 key={g.id}
-                href={`/games/${getGameSlug(g.title, g.id)}`}
+                href={`/games/${g.id}`}
                 style={{
                   position: 'relative',
                   minHeight: 200,
