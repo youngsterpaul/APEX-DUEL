@@ -7,8 +7,8 @@ interface Game {
   id: string;
   title: string;
   category: string;
-  description?: string | null;
-  image_url?: string | null;
+  description?: string;
+  image_url?: string;
 }
 
 interface Challenge {
@@ -39,10 +39,7 @@ export default function Home() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: gamesData } = await supabase
-        .from('games')
-        .select('*')
-        .or('hidden.is.null,hidden.eq.false');
+      const { data: gamesData } = await supabase.from('games').select('*');
       if (gamesData) setGames(gamesData);
 
       const { data: challengeData } = await supabase
@@ -103,7 +100,7 @@ export default function Home() {
           Find Your Match, <span style={{ color: 'var(--red)' }}>Prove Your Gaming Skills</span> & Earn
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 16, lineHeight: 1.6, maxWidth: 700, margin: '0 auto' }}>
-        Create or find challenges, buy and sell accounts securely, and join or host multiplayer competitions with escrow account transfers.
+          Explore game descriptions from our database, create or find challenges, buy and sell accounts securely, and join or host multiplayer competitions with escrow account transfers.
         </p>
       </section>
 
@@ -153,19 +150,149 @@ export default function Home() {
             </div>
           ) : (
             games.map((g) => (
-              <div key={g.id} style={gameCardStyle(g.image_url)}>
-                <div style={gameCardOverlayStyle}>
-                  <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase' }}>{g.category}</span>
-                  <h4 style={{ margin: '6px 0 8px', fontSize: 16, color: '#fff' }}>{g.title}</h4>
-                  <p style={{ fontSize: 13, color: '#d8dae0', margin: 0, lineHeight: 1.4 }}>
-                    {g.description || 'Compete in organized matches, climb rankings, and win cash prizes through secure smart account transfer escrows.'}
-                  </p>
-                </div>
+              <div
+                key={g.id}
+                style={{
+                  position: 'relative',
+                  minHeight: 200,
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  border: '1px solid var(--panel-border)',
+                  backgroundImage: g.image_url
+                    ? `linear-gradient(180deg, rgba(10,11,20,0.2), rgba(10,11,20,0.92)), url(${g.image_url})`
+                    : 'linear-gradient(135deg, rgba(255,59,92,0.25), rgba(41,231,205,0.15))',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  padding: 16,
+                }}
+              >
+                <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase' }}>{g.category}</span>
+                <h4 style={{ margin: '6px 0 8px', fontSize: 16, color: '#fff' }}>{g.title}</h4>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0, lineHeight: 1.4 }}>
+                  {g.description || 'Compete in organized matches, climb rankings, and win cash prizes through secure smart account transfer escrows.'}
+                </p>
               </div>
             ))
           )}
         </div>
       </section>
+
+      {/* QUICK CHALLENGE CREATION & LIVE ROOMS */}
+      <div className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 80px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
+
+        <div style={cardStyle}>
+          <div style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: 16, marginBottom: 20 }}>
+            <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quick Launch</span>
+            <h2 style={{ fontSize: 22, marginTop: 4, textTransform: 'uppercase' }}>Create a Challenge</h2>
+          </div>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
+            Pick any database game, set your stakes, and launch your room.
+          </p>
+
+          {creationMessage && (
+            <div style={{ padding: 10, marginBottom: 16, borderRadius: 4, fontSize: 13, background: creationMessage.type === 'success' ? 'rgba(0,255,100,0.1)' : 'rgba(255,0,0,0.1)', color: creationMessage.type === 'success' ? '#00ff64' : '#ff4444', border: `1px solid ${creationMessage.type === 'success' ? '#00ff64' : '#ff4444'}` }}>
+              {creationMessage.text}
+            </div>
+          )}
+
+          <form onSubmit={handleCreateChallenge} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Select Database Game</label>
+              <select
+                required
+                value={selectedGameId}
+                onChange={(e) => setSelectedGameId(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">-- Choose a Game --</option>
+                {games.map((game) => (
+                  <option key={game.id} value={game.id}>{game.title} ({game.category})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Competition Title</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Weekend Cup 1v1"
+                value={challengeTitle}
+                onChange={(e) => setChallengeTitle(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={labelStyle}>Entry Price ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  required
+                  placeholder="5.00"
+                  value={entryFee}
+                  onChange={(e) => setEntryFee(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Max Players</label>
+                <input
+                  type="number"
+                  min="2"
+                  max="50"
+                  required
+                  value={maxPlayers}
+                  onChange={(e) => setMaxPlayers(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+
+            <button type="submit" style={primaryButtonStyle}>
+              Launch Challenge & Lock Escrow
+            </button>
+          </form>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ borderBottom: '1px solid var(--panel-border)', paddingBottom: 16, marginBottom: 20 }}>
+            <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Lobbies</span>
+            <h2 style={{ fontSize: 22, marginTop: 4, textTransform: 'uppercase' }}>Join Active Competitions</h2>
+          </div>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
+            Browse open rooms and join matches backed by account transfer escrow.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 390, overflowY: 'auto' }}>
+            {challenges.length === 0 ? (
+              <div style={{ color: 'var(--muted)', fontSize: 14, textAlign: 'center', padding: '40px 0' }}>
+                No active competitions found. Create one using the form!
+              </div>
+            ) : (
+              challenges.map((c) => (
+                <div key={c.id} style={{ background: '#0a0b14', border: '1px solid var(--panel-border)', padding: 14, borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: 15, color: '#fff' }}>{c.title}</h4>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      Slots: {c.current_players} / {c.max_players} | Price: ${c.entry_fee}
+                    </span>
+                  </div>
+                  <Link href={`/duels/${c.id}`} style={secondaryButtonStyle}>
+                    Join Room
+                  </Link>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
@@ -190,29 +317,6 @@ const categoryOverlayStyle: React.CSSProperties = {
   color: '#fff',
   display: 'flex',
   flexDirection: 'column',
-};
-
-const gameCardStyle = (imageUrl?: string | null): React.CSSProperties => ({
-  position: 'relative',
-  minHeight: 170,
-  borderRadius: 8,
-  overflow: 'hidden',
-  border: '1px solid var(--panel-border)',
-  boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
-  display: 'flex',
-  alignItems: 'flex-end',
-  ...(imageUrl
-    ? {
-        backgroundImage: `linear-gradient(180deg, rgba(10,11,20,0.35) 0%, rgba(10,11,20,0.75) 65%, rgba(10,11,20,0.92) 100%), url(${imageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : { background: '#131627' }),
-});
-
-const gameCardOverlayStyle: React.CSSProperties = {
-  padding: 16,
-  width: '100%',
 };
 
 const cardStyle: React.CSSProperties = {
