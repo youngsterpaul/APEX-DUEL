@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useCart } from '../lib/cartContext';
 import PopupMenu from './PopupMenu';
 
 interface NavLink {
@@ -17,6 +18,7 @@ const navLinks: NavLink[] = [
 export default function Header() {
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { count } = useCart();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -79,6 +81,49 @@ export default function Header() {
           </nav>
 
           <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            {/* Cart */}
+            <Link
+              href="/cart"
+              aria-label="Cart"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 38,
+                height: 38,
+                borderRadius: 4,
+                border: '1px solid var(--panel-border)',
+                color: '#fff',
+                textDecoration: 'none',
+                fontSize: 16,
+              }}
+            >
+              🛒
+              {count > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -6,
+                    right: -6,
+                    background: 'var(--red)',
+                    color: '#fff',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    minWidth: 16,
+                    height: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                  }}
+                >
+                  {count}
+                </span>
+              )}
+            </Link>
+
             {/* Challenge CTA Button */}
             <Link
               href="/challenges"
