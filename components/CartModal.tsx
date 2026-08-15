@@ -61,7 +61,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
           ) : (
             items.map((item) => (
               <div
-                key={item.id}
+                key={item.listing_id}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -83,9 +83,11 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--red)', textTransform: 'uppercase' }}>{item.listing?.rating}</div>
                 </div>
-                <span style={{ fontWeight: 800, fontSize: 14, flexShrink: 0 }}>${item.listing?.price.toFixed(2)}</span>
+                <span style={{ fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+                  ${(item.listing?.price ?? 0).toFixed(2)}
+                </span>
                 <button
-                  onClick={() => removeFromCart(item.id)}
+                  onClick={() => removeFromCart(item.listing_id)}
                   aria-label="Remove from cart"
                   style={{
                     background: 'transparent',
