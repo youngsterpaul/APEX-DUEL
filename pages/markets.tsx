@@ -40,16 +40,51 @@ export default function Markets() {
         <title>Markets | ApexDuel</title>
       </Head>
 
-      <section style={{ padding: '48px 24px 24px', maxWidth: 1200, margin: '0 auto' }}>
-        <span className="mono" style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Markets
-        </span>
-        <h1 className="display" style={{ fontSize: 'clamp(28px, 4vw, 44px)', marginTop: 8, textTransform: 'uppercase' }}>
-          Choose a Game
-        </h1>
-        <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 8 }}>
-          Tap a game to see accounts currently for sale.
-        </p>
+      <section
+        style={{
+          padding: '48px 24px 24px',
+          maxWidth: 1200,
+          margin: '0 auto',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}
+      >
+        <div>
+          <span className="mono" style={{ fontSize: 12, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Markets
+          </span>
+          <h1 className="display" style={{ fontSize: 'clamp(28px, 4vw, 44px)', marginTop: 8, textTransform: 'uppercase' }}>
+            Choose a Game
+          </h1>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 8 }}>
+            Tap a game to see accounts currently for sale.
+          </p>
+        </div>
+
+        {/* Sell Account Button */}
+        <Link
+          href="/markets/sell"
+          style={{
+            background: 'var(--red)',
+            color: '#fff',
+            padding: '10px 20px',
+            fontWeight: 700,
+            fontSize: 13,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            textDecoration: 'none',
+            borderRadius: 2,
+            transform: 'skewX(-10deg)',
+            display: 'inline-block',
+            boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
+            marginTop: 12,
+          }}
+        >
+          <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Sell Account</span>
+        </Link>
       </section>
 
       <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 80px' }}>
