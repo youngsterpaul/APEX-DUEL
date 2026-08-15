@@ -89,22 +89,27 @@ export default function Challenges() {
           </h1>
         </div>
 
+        {/* Create Challenge Button */}
         <Link
           href="/challenges/create"
           style={{
             background: 'var(--red)',
-            color: '#0a0b14',
-            padding: '12px 22px',
+            color: '#fff',
+            padding: '10px 20px',
             fontWeight: 700,
             fontSize: 13,
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             textDecoration: 'none',
-            borderRadius: 4,
+            borderRadius: 2,
+            transform: 'skewX(-10deg)',
+            display: 'inline-block',
+            boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
+            marginTop: 12,
             whiteSpace: 'nowrap',
           }}
         >
-          + Create Challenge
+          <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create Challenge</span>
         </Link>
       </section>
 
