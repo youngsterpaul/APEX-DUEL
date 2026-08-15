@@ -3,7 +3,20 @@ import { supabase } from './supabaseClient';
 
 const GUEST_CART_KEY = 'apexduel_guest_cart';
 
+export interface Listing {
+  id: string;
+  title?: string;
+  price?: number;
+  [key: string]: any;
+}
+
+export interface CartItem {
+  listing_id: string;
+  listing?: Listing;
+}
+
 interface CartContextValue {
+  items: CartItem[];
   itemIds: string[];
   count: number;
   loading: boolean;
@@ -31,9 +44,19 @@ function writeGuestCart(ids: string[]) {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [itemIds, setItemIds] = useState<string[]>([]);
+  const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+
+  const fetchListingsForIds = async (ids: string[]): Promise<CartItem[]> => {
+    if (ids.length === 0) return [];
+    const { data } = await supabase.from('listings').select('*').in('id', ids);
+    const map = new Map((data || []).map((l) => [l.id, l]));
+    return ids.map((id) => ({
+      listing_id: id,
+      listing: map.get(id),
+    }));
+  };
 
   const loadCart = async () => {
     setLoading(true);
@@ -41,18 +64,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     if (!session) {
       setUserId(null);
-      setItemIds(readGuestCart());
+      const guestIds = readGuestCart();
+      const loadedItems = await fetchListingsForIds(guestIds);
+      setItems(loadedItems);
       setLoading(false);
       return;
     }
 
     setUserId(session.user.id);
-    const { data } = await supabase.from('cart_items').select('listing_id').eq('buyer_id', session.user.id);
-    setItemIds((data || []).map((row) => row.listing_id));
+    const { data } = await supabase
+      .from('cart_items')
+      .select('listing_id, listing:listings(*)')
+      .eq('buyer_id', session.user.id);
+
+    if (data) {
+      setItems(
+        data.map((row: any) => ({
+          listing_id: row.listing_id,
+          listing: Array.isArray(row.listing) ? row.listing[0] : row.listing,
+        }))
+      );
+    } else {
+      setItems([]);
+    }
     setLoading(false);
   };
 
-  // Merge any guest-cart items into the real Supabase cart the moment someone signs in.
   const mergeGuestCartOnSignIn = async (newUserId: string) => {
     const guestIds = readGuestCart();
     if (guestIds.length === 0) return;
@@ -71,12 +108,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
         await loadCart();
       } else if (event === 'SIGNED_OUT') {
         setUserId(null);
-        setItemIds(readGuestCart());
+        const guestIds = readGuestCart();
+        const loadedItems = await fetchListingsForIds(guestIds);
+        setItems(loadedItems);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const itemIds = items.map((i) => i.listing_id);
 
   const isInCart = (listingId: string) => itemIds.includes(listingId);
 
@@ -84,33 +125,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (isInCart(listingId)) return;
 
     if (!userId) {
-      const next = [...readGuestCart(), listingId];
-      writeGuestCart(next);
-      setItemIds(next);
+      const nextIds = [...readGuestCart(), listingId];
+      writeGuestCart(nextIds);
+      const loadedItems = await fetchListingsForIds(nextIds);
+      setItems(loadedItems);
       return;
     }
 
     const { error } = await supabase.from('cart_items').insert([{ buyer_id: userId, listing_id: listingId }]);
     if (!error || error.code === '23505') {
-      setItemIds((prev) => (prev.includes(listingId) ? prev : [...prev, listingId]));
+      await loadCart();
     }
   };
 
   const removeFromCart = async (listingId: string) => {
     if (!userId) {
-      const next = readGuestCart().filter((id) => id !== listingId);
-      writeGuestCart(next);
-      setItemIds(next);
+      const nextIds = readGuestCart().filter((id) => id !== listingId);
+      writeGuestCart(nextIds);
+      setItems((prev) => prev.filter((i) => i.listing_id !== listingId));
       return;
     }
 
     await supabase.from('cart_items').delete().eq('buyer_id', userId).eq('listing_id', listingId);
-    setItemIds((prev) => prev.filter((id) => id !== listingId));
+    setItems((prev) => prev.filter((i) => i.listing_id !== listingId));
   };
 
   return (
     <CartContext.Provider
-      value={{ itemIds, count: itemIds.length, loading, isInCart, addToCart, removeFromCart, refresh: loadCart }}
+      value={{
+        items,
+        itemIds,
+        count: items.length,
+        loading,
+        isInCart,
+        addToCart,
+        removeFromCart,
+        refresh: loadCart,
+      }}
     >
       {children}
     </CartContext.Provider>
