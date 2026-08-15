@@ -19,11 +19,14 @@ export interface AccountListing {
   id: string;
   game_id: string;
   seller_id: string;
+  buyer_id: string | null;
   in_game_username: string;
   rating: string;
+  ranking: string;
   price: number;
   photos: string[];
   status: 'active' | 'sold' | 'removed';
+  share_code: string;
   created_at: string;
   seller?: Profile;
 }

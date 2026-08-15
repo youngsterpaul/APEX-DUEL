@@ -14,6 +14,7 @@ const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/tournaments', label: 'Tournaments' },
   { href: '/markets', label: 'Markets' },
+  { href: '/search', label: 'Search Code' },
 ];
 
 export default function Header() {
