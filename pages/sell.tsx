@@ -1,465 +1,281 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useState, useEffect, FormEvent } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabaseClient';
+import { uploadListingPhoto } from '../../lib/storage';
 
 interface Game {
   id: string;
   title: string;
-  category: string;
 }
 
-export default function ListAccount() {
+const MAX_PHOTOS = 2;
+
+export default function SellAccountPage() {
   const router = useRouter();
-
-  // Form states
+  const [session, setSession] = useState<any>(null);
   const [games, setGames] = useState<Game[]>([]);
-  const [selectedGameId, setSelectedGameId] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [accountLevel, setAccountLevel] = useState('');
-  const [rank, setRank] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
 
-  // UI status states
-  const [fetchingGames, setFetchingGames] = useState(true);
+  const [gameId, setGameId] = useState('');
+  const [inGameUsername, setInGameUsername] = useState('');
+  const [rating, setRating] = useState('');
+  const [ranking, setRanking] = useState('');
+  const [squadStrength, setSquadStrength] = useState('');
+  const [level, setLevel] = useState('');
+  const [accountEmail, setAccountEmail] = useState('');
+  const [price, setPrice] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [emailProofFile, setEmailProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    fetchGames();
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase
+      .from('games')
+      .select('id, title')
+      .or('hidden.eq.false,hidden.is.null')
+      .order('title')
+      .then(({ data }) => {
+        if (data) {
+          setGames(data);
+          if (data[0]) setGameId(data[0].id);
+        }
+      });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  const fetchGames = async () => {
-    setFetchingGames(true);
-    const { data, error } = await supabase
-      .from('games')
-      .select('id, title, category')
-      .order('title', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching games:', error);
-    } else if (data) {
-      setGames(data);
-      if (data.length > 0) {
-        setSelectedGameId(data[0].id);
+  const handleFileSelect = (fileList: FileList | null) => {
+    if (!fileList) return;
+    const incoming = Array.from(fileList).slice(0, MAX_PHOTOS - files.length);
+    const seen = new Set(files.map((f) => `${f.name}-${f.size}`));
+    const deduped: File[] = [];
+    for (const f of incoming) {
+      const key = `${f.name}-${f.size}`;
+      if (seen.has(key)) {
+        setMessage({ type: 'error', text: `Skipped "${f.name}" — that looks like a duplicate of a photo you already added.` });
+        continue;
       }
+      seen.add(key);
+      deduped.push(f);
     }
-    setFetchingGames(false);
+    setFiles((prev) => [...prev, ...deduped].slice(0, MAX_PHOTOS));
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
+  const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
 
-    if (!title.trim() || !selectedGameId || !price) {
-      setErrorMessage('Please fill in all required fields.');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
+    if (!session) {
+      setMessage({ type: 'error', text: 'Sign in to list an account for sale.' });
       return;
     }
-
-    const numericPrice = parseFloat(price);
-    if (isNaN(numericPrice) || numericPrice <= 0) {
-      setErrorMessage('Please enter a valid price.');
+    if (!gameId) {
+      setMessage({ type: 'error', text: 'Select a game.' });
+      return;
+    }
+    if (files.length !== MAX_PHOTOS) {
+      setMessage({ type: 'error', text: `Add exactly ${MAX_PHOTOS} account photos.` });
+      return;
+    }
+    if (!emailProofFile) {
+      setMessage({ type: 'error', text: 'Add a photo of the email account tied to this game account (ownership proof).' });
       return;
     }
 
     setSubmitting(true);
-
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id || null;
+      const photoUrls: string[] = [];
+      for (const file of files) {
+        photoUrls.push(await uploadListingPhoto(session.user.id, file));
+      }
+      const emailProofUrl = await uploadListingPhoto(session.user.id, emailProofFile);
 
-      const { data, error } = await supabase.from('market_listings').insert([
-        {
-          game_id: selectedGameId,
-          seller_id: userId,
-          title: title.trim(),
-          description: description.trim(),
-          price: numericPrice,
-          account_level: accountLevel ? parseInt(accountLevel, 10) : null,
-          rank: rank.trim() || null,
-          image_url: imageUrl.trim() || null,
-          status: 'active',
-        },
-      ]);
-
+      const { data, error } = await supabase
+        .from('account_listings')
+        .insert({
+          game_id: gameId,
+          seller_id: session.user.id,
+          in_game_username: inGameUsername,
+          rating,
+          ranking,
+          squad_strength: squadStrength ? parseFloat(squadStrength) : null,
+          level: level ? parseInt(level, 10) : null,
+          account_email: accountEmail,
+          email_proof_photo: emailProofUrl,
+          price: parseFloat(price),
+          photos: photoUrls,
+        })
+        .select()
+        .single();
       if (error) throw error;
 
-      setSuccessMessage('Account listed successfully! Redirecting to markets...');
-      setTimeout(() => {
-        router.push('/markets');
-      }, 1500);
+      setMessage({ type: 'success', text: 'Listing published! Redirecting…' });
+      setTimeout(() => router.push(`/markets/listing/${data.id}`), 800);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to create listing. Please try again.');
+      setMessage({ type: 'error', text: err.message || 'Could not publish listing.' });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh', paddingBottom: 80 }}>
+    <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
       <Head>
-        <title>List Account for Sale | ApexDuel</title>
+        <title>Sell Your Account | ApexDuel</title>
       </Head>
 
-      {/* Hero / Header Section */}
-      <section
-        style={{
-          padding: '48px 24px 24px',
-          maxWidth: 800,
-          margin: '0 auto',
-        }}
-      >
-        <Link
-          href="/markets"
-          style={{
-            color: 'var(--muted)',
-            fontSize: 13,
-            textDecoration: 'none',
-            display: 'inline-block',
-            marginBottom: 16,
-          }}
-        >
-          &larr; Back to Markets
+      <section style={{ maxWidth: 560, margin: '0 auto', padding: '50px 20px' }}>
+        <Link href="/markets" style={{ color: 'var(--muted)', fontSize: 13, textDecoration: 'none' }}>
+          ← Back to markets
         </Link>
-        <span
-          className="mono"
-          style={{
-            fontSize: 12,
-            color: 'var(--red)',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            display: 'block',
-          }}
-        >
-          Marketplace
-        </span>
-        <h1
-          className="display"
-          style={{ fontSize: 'clamp(28px, 4vw, 40px)', marginTop: 8, textTransform: 'uppercase' }}
-        >
-          List Your Account
+        <h1 style={{ fontSize: 28, fontWeight: 900, textTransform: 'uppercase', margin: '10px 0 24px' }}>
+          Sell Your <span style={{ color: 'var(--red)' }}>Account</span>
         </h1>
-        <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 6 }}>
-          Put your gaming account up for sale on the ApexDuel marketplace.
-        </p>
-      </section>
 
-      {/* Main Form Section */}
-      <section style={{ maxWidth: 800, margin: '0 auto', padding: '0 24px' }}>
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            background: '#131627',
-            border: '1px solid var(--panel-border)',
-            borderRadius: 8,
-            padding: 28,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 20,
-          }}
-        >
-          {errorMessage && (
-            <div
-              style={{
-                background: 'rgba(255, 59, 92, 0.15)',
-                border: '1px solid var(--red)',
-                color: '#ff3b5c',
-                padding: '12px 16px',
-                borderRadius: 4,
-                fontSize: 14,
-              }}
-            >
-              {errorMessage}
+        {!session && (
+          <div style={{ padding: 12, marginBottom: 20, borderRadius: 4, background: 'rgba(255,0,0,0.1)', border: '1px solid #ff4444', fontSize: 13 }}>
+            You must be signed in to list an account. <Link href="/login" style={{ color: '#ff4444', textDecoration: 'underline' }}>Sign in</Link>
+          </div>
+        )}
+
+        {message && (
+          <div
+            style={{
+              padding: 10,
+              marginBottom: 20,
+              borderRadius: 4,
+              fontSize: 13,
+              background: message.type === 'success' ? 'rgba(0,255,100,0.1)' : 'rgba(255,0,0,0.1)',
+              color: message.type === 'success' ? '#00ff64' : '#ff4444',
+              border: `1px solid ${message.type === 'success' ? '#00ff64' : '#ff4444'}`,
+            }}
+          >
+            {message.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24 }}>
+          <label style={labelStyle}>Game</label>
+          <select required value={gameId} onChange={(e) => setGameId(e.target.value)} style={inputStyle}>
+            {games.map((g) => (
+              <option key={g.id} value={g.id}>{g.title}</option>
+            ))}
+          </select>
+
+          <label style={labelStyle}>Account username</label>
+          <input required value={inGameUsername} onChange={(e) => setInGameUsername(e.target.value)} style={inputStyle} placeholder="e.g. ShadowStriker99" />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Squad strength</label>
+              <input required type="number" step="1" value={squadStrength} onChange={(e) => setSquadStrength(e.target.value)} style={inputStyle} placeholder="e.g. 3200" />
             </div>
-          )}
-
-          {successMessage && (
-            <div
-              style={{
-                background: 'rgba(41, 231, 205, 0.15)',
-                border: '1px solid var(--gold)',
-                color: '#29e7cd',
-                padding: '12px 16px',
-                borderRadius: 4,
-                fontSize: 14,
-              }}
-            >
-              {successMessage}
+            <div>
+              <label style={labelStyle}>Level</label>
+              <input required type="number" step="1" value={level} onChange={(e) => setLevel(e.target.value)} style={inputStyle} placeholder="e.g. 340" />
             </div>
-          )}
+          </div>
 
-          {/* Select Game */}
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                marginBottom: 6,
-                color: 'var(--muted)',
-              }}
-            >
-              Select Game *
-            </label>
-            {fetchingGames ? (
-              <div style={{ color: 'var(--muted)', fontSize: 13 }}>Loading games...</div>
+          <label style={labelStyle}>Ranking</label>
+          <input required value={ranking} onChange={(e) => setRanking(e.target.value)} style={inputStyle} placeholder="e.g. Diamond II" />
+
+          <label style={labelStyle}>Rating notes (optional detail)</label>
+          <input value={rating} onChange={(e) => setRating(e.target.value)} style={inputStyle} placeholder="e.g. 1850 MMR, top 5% globally" />
+
+          <label style={labelStyle}>Email tied to the account</label>
+          <input required type="email" value={accountEmail} onChange={(e) => setAccountEmail(e.target.value)} style={inputStyle} placeholder="account-owner@email.com" />
+
+          <label style={labelStyle}>Amount the account is on sale for (USD)</label>
+          <input required type="number" min="0.01" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} placeholder="49.99" />
+
+          <label style={labelStyle}>Account photos (exactly {MAX_PHOTOS}, must be different images)</label>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+            {files.map((f, i) => (
+              <div key={i} style={{ position: 'relative', width: 100, height: 100 }}>
+                <img src={URL.createObjectURL(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6, border: '1px solid var(--panel-border)' }} />
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  style={{ position: 'absolute', top: -6, right: -6, background: '#ff4444', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 11, cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {files.length < MAX_PHOTOS && (
+              <label style={{ width: 100, height: 100, border: '1px dashed var(--panel-border)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 26, color: 'var(--muted)' }}>
+                +
+                <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => handleFileSelect(e.target.files)} />
+              </label>
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 16 }}>{files.length}/{MAX_PHOTOS} account photos added</p>
+
+          <label style={labelStyle}>Email account photo (ownership proof — a screenshot of the inbox for the email above)</label>
+          <div style={{ marginBottom: 16 }}>
+            {emailProofFile ? (
+              <div style={{ position: 'relative', width: 140, height: 100 }}>
+                <img src={URL.createObjectURL(emailProofFile)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6, border: '1px solid var(--panel-border)' }} />
+                <button
+                  type="button"
+                  onClick={() => setEmailProofFile(null)}
+                  style={{ position: 'absolute', top: -6, right: -6, background: '#ff4444', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 11, cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
             ) : (
-              <select
-                value={selectedGameId}
-                onChange={(e) => setSelectedGameId(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  background: '#0a0b14',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '12px 14px',
-                  borderRadius: 4,
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              >
-                {games.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.title} ({g.category})
-                  </option>
-                ))}
-              </select>
+              <label style={{ width: 140, height: 100, border: '1px dashed var(--panel-border)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 26, color: 'var(--muted)' }}>
+                +
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => setEmailProofFile(e.target.files?.[0] || null)} />
+              </label>
             )}
           </div>
 
-          {/* Listing Title */}
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                marginBottom: 6,
-                color: 'var(--muted)',
-              }}
-            >
-              Listing Title *
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Stacked Apex Legends Account - Predator S12 + Heirloom"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                background: '#0a0b14',
-                border: '1px solid var(--panel-border)',
-                color: '#fff',
-                padding: '12px 14px',
-                borderRadius: 4,
-                fontSize: 14,
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {/* Price & Level Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  marginBottom: 6,
-                  color: 'var(--muted)',
-                }}
-              >
-                Asking Price ($) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="150.00"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  background: '#0a0b14',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '12px 14px',
-                  borderRadius: 4,
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-            </div>
-
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  marginBottom: 6,
-                  color: 'var(--muted)',
-                }}
-              >
-                Account Level (Optional)
-              </label>
-              <input
-                type="number"
-                placeholder="500"
-                value={accountLevel}
-                onChange={(e) => setAccountLevel(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: '#0a0b14',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '12px 14px',
-                  borderRadius: 4,
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-            </div>
-
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  marginBottom: 6,
-                  color: 'var(--muted)',
-                }}
-              >
-                Current Rank / Tier (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="Diamond II / Immortal"
-                value={rank}
-                onChange={(e) => setRank(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: '#0a0b14',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '12px 14px',
-                  borderRadius: 4,
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Banner / Preview Image URL */}
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                marginBottom: 6,
-                color: 'var(--muted)',
-              }}
-            >
-              Account Image / Screenshot URL (Optional)
-            </label>
-            <input
-              type="url"
-              placeholder="https://example.com/screenshot.jpg"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              style={{
-                width: '100%',
-                background: '#0a0b14',
-                border: '1px solid var(--panel-border)',
-                color: '#fff',
-                padding: '12px 14px',
-                borderRadius: 4,
-                fontSize: 14,
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                marginBottom: 6,
-                color: 'var(--muted)',
-              }}
-            >
-              Account Details & Inventory Description
-            </label>
-            <textarea
-              rows={5}
-              placeholder="Describe skins, cosmetics, unlockables, badges, or special items included with this account..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{
-                width: '100%',
-                background: '#0a0b14',
-                border: '1px solid var(--panel-border)',
-                color: '#fff',
-                padding: '12px 14px',
-                borderRadius: 4,
-                fontSize: 14,
-                outline: 'none',
-                resize: 'vertical',
-              }}
-            />
-          </div>
-
-          {/* Submit CTA */}
-          <div style={{ marginTop: 8 }}>
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                width: '100%',
-                background: submitting ? '#555' : 'var(--red)',
-                color: '#fff',
-                padding: '14px',
-                fontWeight: 800,
-                fontSize: 14,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                border: 'none',
-                borderRadius: 2,
-                transform: 'skewX(-6deg)',
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
-              }}
-            >
-              <span style={{ display: 'inline-block', transform: 'skewX(6deg)' }}>
-                {submitting ? 'Creating Listing...' : 'Publish Listing'}
-              </span>
-            </button>
-          </div>
+          <button type="submit" disabled={submitting} style={primaryButtonStyle}>
+            {submitting ? 'Publishing…' : 'Submit listing'}
+          </button>
         </form>
       </section>
     </div>
   );
 }
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: 12,
+  color: 'var(--muted)',
+  marginBottom: 6,
+  marginTop: 16,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  background: '#0a0b14',
+  border: '1px solid var(--panel-border)',
+  color: '#fff',
+  borderRadius: 4,
+  fontSize: 14,
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'var(--red)',
+  color: '#fff',
+  padding: '12px',
+  fontWeight: 700,
+  border: 'none',
+  cursor: 'pointer',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  borderRadius: 4,
+  marginTop: 8,
+};

@@ -4,6 +4,7 @@ interface PopupMenuProps {
   isOpen: boolean;
   onClose: () => void;
   user: any;
+  isAdmin?: boolean;
   onSignOut: () => void;
 }
 
@@ -13,9 +14,10 @@ const menuLinks = [
   { href: '/markets', label: 'Markets' },
   { href: '/challenges', label: 'Challenges' },
   { href: '/tournaments', label: 'Tournaments' },
+  { href: '/leagues', label: 'Leagues' },
 ];
 
-export default function PopupMenu({ isOpen, onClose, user, onSignOut }: PopupMenuProps) {
+export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }: PopupMenuProps) {
   if (!isOpen) return null;
 
   return (
@@ -88,26 +90,68 @@ export default function PopupMenu({ isOpen, onClose, user, onSignOut }: PopupMen
 
         <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--panel-border)' }}>
           {user ? (
-            <button
-              onClick={() => {
-                onSignOut();
-                onClose();
-              }}
-              style={{
-                width: '100%',
-                background: 'transparent',
-                border: '1px solid var(--red)',
-                color: 'var(--red)',
-                padding: '10px 14px',
-                fontWeight: 700,
-                fontSize: 13,
-                textTransform: 'uppercase',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
-            >
-              Sign Out
-            </button>
+            <>
+              <Link
+                href="/profile"
+                onClick={onClose}
+                style={{
+                  display: 'block',
+                  textAlign: 'center',
+                  border: '1px solid var(--panel-border)',
+                  color: '#fff',
+                  padding: '10px 14px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textTransform: 'uppercase',
+                  borderRadius: 4,
+                  marginBottom: 10,
+                  textDecoration: 'none',
+                }}
+              >
+                My Profile
+              </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={onClose}
+                  style={{
+                    display: 'block',
+                    textAlign: 'center',
+                    border: '1px solid var(--panel-border)',
+                    color: '#fff',
+                    padding: '10px 14px',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    textTransform: 'uppercase',
+                    borderRadius: 4,
+                    marginBottom: 10,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Admin Panel
+                </Link>
+              )}
+              <button
+                onClick={() => {
+                  onSignOut();
+                  onClose();
+                }}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: '1px solid var(--red)',
+                  color: 'var(--red)',
+                  padding: '10px 14px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textTransform: 'uppercase',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                Sign Out
+              </button>
+            </>
           ) : (
             <Link
               href="/login"

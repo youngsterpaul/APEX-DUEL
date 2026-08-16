@@ -12,13 +12,15 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
-  { href: '/tournaments', label: 'Tournaments' },
   { href: '/markets', label: 'Markets' },
-  { href: '/search', label: 'Search Code' },
+  { href: '/challenges', label: 'Challenges' },
+  { href: '/tournaments', label: 'Tournaments' },
+  { href: '/leagues', label: 'Leagues' },
 ];
 
 export default function Header() {
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const { count } = useCart();
@@ -26,14 +28,22 @@ export default function Header() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session) checkAdmin(session.user.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session) checkAdmin(session.user.id);
+      else setIsAdmin(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const checkAdmin = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('is_admin').eq('id', userId).maybeSingle();
+    setIsAdmin(Boolean(data?.is_admin));
+  };
 
   return (
     <>
@@ -128,9 +138,9 @@ export default function Header() {
               )}
             </button>
 
-            {/* Create Challenge CTA Button */}
+            {/* Challenge CTA Button */}
             <Link
-              href="/challenges/create"
+              href="/challenges"
               style={{
                 background: 'var(--red)',
                 color: '#fff',
@@ -146,7 +156,7 @@ export default function Header() {
                 boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
               }}
             >
-              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Create Challenge</span>
+              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
             </Link>
 
             {/* Hamburger / Menu toggle button */}
@@ -182,6 +192,7 @@ export default function Header() {
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
         user={user}
+        isAdmin={isAdmin}
         onSignOut={async () => { await supabase.auth.signOut(); }}
       />
 
