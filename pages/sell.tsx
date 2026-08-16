@@ -2,8 +2,8 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { uploadListingPhoto } from '../../lib/storage';
+import { supabase } from '../lib/supabaseClient';
+import { uploadListingPhoto } from '../lib/storage';
 
 interface Game {
   id: string;
