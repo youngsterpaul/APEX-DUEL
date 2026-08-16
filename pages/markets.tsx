@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import FindByCode from '../components/FindByCode';
+import SkeletonGrid from '../components/SkeletonGrid';
 
 interface Game {
   id: string;
@@ -63,7 +64,7 @@ export default function MarketsPage() {
 
       <section style={{ padding: '50px 20px 0', maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'flex-end' }}>
         <Link
-          href="/markets/sell"
+          href="/sell"
           style={{
             background: 'var(--red)',
             color: '#fff',
@@ -73,10 +74,13 @@ export default function MarketsPage() {
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             textDecoration: 'none',
-            borderRadius: 4,
+            borderRadius: 2,
+            transform: 'skewX(-10deg)',
+            display: 'inline-block',
+            boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
           }}
         >
-          Sell Your Account
+          <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Sell Your Account</span>
         </Link>
       </section>
 
@@ -98,7 +102,7 @@ export default function MarketsPage() {
         </h3>
 
         {loading ? (
-          <div style={{ color: 'var(--muted)', textAlign: 'center', padding: '50px 0' }}>Loading database games...</div>
+          <SkeletonGrid count={8} height={260} minWidth={280} />
         ) : games.length === 0 ? (
           <div style={{ color: 'var(--muted)', textAlign: 'center', padding: '50px 0' }}>No games available yet.</div>
         ) : (

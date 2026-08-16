@@ -163,3 +163,17 @@ export interface LeagueMatch {
   status: 'open' | 'pending' | 'completed' | 'disputed';
   created_at: string;
 }
+
+export interface League {
+  id: string;
+  game_id: string;
+  name: string;
+  created_by: string;
+  status: 'open' | 'completed' | 'cancelled';
+  entry_fee?: number | null;
+  max_players?: number | null;
+  rounds_per_opponent?: number | null;
+  share_code: string;
+  created_at: string;
+  game_title?: string;
+}
