@@ -21,7 +21,7 @@ interface CartContextValue {
   count: number;
   loading: boolean;
   isInCart: (listingId: string) => boolean;
-  addToCart: (listingId: string) => Promise<void>;
+  addToCart: (listingId: string) => Promise<{ error?: string }>;
   removeFromCart: (listingId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -121,21 +121,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const isInCart = (listingId: string) => itemIds.includes(listingId);
 
-  const addToCart = async (listingId: string) => {
-    if (isInCart(listingId)) return;
+  const addToCart = async (listingId: string): Promise<{ error?: string }> => {
+    if (isInCart(listingId)) return {};
 
     if (!userId) {
       const nextIds = [...readGuestCart(), listingId];
       writeGuestCart(nextIds);
       const loadedItems = await fetchListingsForIds(nextIds);
       setItems(loadedItems);
-      return;
+      return {};
     }
 
     const { error } = await supabase.from('cart_items').insert([{ buyer_id: userId, listing_id: listingId }]);
-    if (!error || error.code === '23505') {
-      await loadCart();
+    
+    if (error && error.code !== '23505') {
+      return { error: error.message };
     }
+
+    await loadCart();
+    return {};
   };
 
   const removeFromCart = async (listingId: string) => {
