@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import SkeletonGrid from '../components/SkeletonGrid';
 import Pagination from '../components/Pagination';
+import { useCart } from '../lib/cartContext';
 
 interface Tournament {
   id: string;
@@ -29,11 +30,20 @@ interface Game {
 const PAGE_SIZE = 6;
 
 export default function Tournaments() {
+  const { isInCart, addToCart } = useCart();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [gamesMap, setGamesMap] = useState<Record<string, Game>>({});
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [cartMessage, setCartMessage] = useState<string | null>(null);
+
+  const handleAddToCart = async (id: string) => {
+    setCartMessage(null);
+    const { error } = await addToCart(id, 'tournament');
+    setCartMessage(error || 'Added to cart!');
+    setTimeout(() => setCartMessage(null), 2000);
+  };
 
   useEffect(() => {
     fetchTournamentsAndGames();
@@ -182,6 +192,22 @@ export default function Tournaments() {
 
       {/* Tournament Cards Grid */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+        {cartMessage && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 10,
+              borderRadius: 4,
+              fontSize: 13,
+              textAlign: 'center',
+              background: 'rgba(41,231,205,0.1)',
+              color: '#29e7cd',
+              border: '1px solid #29e7cd',
+            }}
+          >
+            {cartMessage}
+          </div>
+        )}
         {loading ? (
           <SkeletonGrid count={6} height={240} minWidth={320} />
         ) : pageTournaments.length === 0 ? (
@@ -312,22 +338,41 @@ export default function Tournaments() {
                           CODE: <strong style={{ color: '#fff' }}>{t.share_code || 'N/A'}</strong>
                         </span>
 
-                        <Link
-                          href={`/tournaments/${t.id}`}
-                          style={{
-                            border: '1px solid var(--red)',
-                            color: 'var(--red)',
-                            padding: '8px 16px',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            borderRadius: 4,
-                            textDecoration: 'none',
-                            transition: 'all 0.2s ease',
-                          }}
-                        >
-                          View Details
-                        </Link>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={() => handleAddToCart(t.id)}
+                            disabled={isInCart(t.id, 'tournament')}
+                            style={{
+                              background: isInCart(t.id, 'tournament') ? '#2a2d3a' : 'transparent',
+                              border: '1px solid var(--panel-border)',
+                              color: '#fff',
+                              padding: '8px 12px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              borderRadius: 4,
+                              cursor: isInCart(t.id, 'tournament') ? 'default' : 'pointer',
+                            }}
+                          >
+                            {isInCart(t.id, 'tournament') ? 'In Cart' : 'Add to Cart'}
+                          </button>
+                          <Link
+                            href={`/tournaments/${t.id}`}
+                            style={{
+                              border: '1px solid var(--red)',
+                              color: 'var(--red)',
+                              padding: '8px 16px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              borderRadius: 4,
+                              textDecoration: 'none',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            View Details
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>

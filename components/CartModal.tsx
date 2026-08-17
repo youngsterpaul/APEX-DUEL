@@ -1,4 +1,4 @@
-import { useCart } from '../lib/cartContext';
+import { useCart, cartItemLabel, cartItemPrice, cartItemTypeLabel } from '../lib/cartContext';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -9,7 +9,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
   const { items, loading, removeFromCart } = useCart();
   if (!isOpen) return null;
 
-  const total = items.reduce((sum, i) => sum + (i.listing?.price || 0), 0);
+  const total = items.reduce((sum, i) => sum + cartItemPrice(i), 0);
 
   return (
     <div
@@ -59,52 +59,84 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
               Your cart is empty.
             </p>
           ) : (
-            items.map((item) => (
-              <div
-                key={item.listing_id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  background: '#131627',
-                  border: '1px solid var(--panel-border)',
-                  borderRadius: 8,
-                  padding: 12,
-                }}
-              >
-                <img
-                  src={item.listing?.photos?.[0] || ''}
-                  alt=""
-                  style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 6, background: '#0a0b14', flexShrink: 0 }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {item.listing?.in_game_username}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--red)', textTransform: 'uppercase' }}>{item.listing?.rating}</div>
-                </div>
-                <span style={{ fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
-                  ${(item.listing?.price ?? 0).toFixed(2)}
-                </span>
-                <button
-                  onClick={() => removeFromCart(item.listing_id)}
-                  aria-label="Remove from cart"
+            items.map((item) => {
+              const isListing = item.item_type === 'listing';
+              const price = cartItemPrice(item);
+              const free = !isListing && price <= 0;
+
+              return (
+                <div
+                  key={`${item.item_type}:${item.item_id}`}
                   style={{
-                    background: 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    background: '#131627',
                     border: '1px solid var(--panel-border)',
-                    color: '#ff4444',
-                    borderRadius: 4,
-                    width: 26,
-                    height: 26,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    flexShrink: 0,
+                    borderRadius: 8,
+                    padding: 12,
                   }}
                 >
-                  ✕
-                </button>
-              </div>
-            ))
+                  {isListing ? (
+                    <img
+                      src={item.details?.photos?.[0] || ''}
+                      alt=""
+                      style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 6, background: '#0a0b14', flexShrink: 0 }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 6,
+                        background: '#0a0b14',
+                        border: '1px solid var(--panel-border)',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10,
+                        fontWeight: 800,
+                        color: 'var(--gold)',
+                        textAlign: 'center',
+                        textTransform: 'uppercase',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {cartItemTypeLabel(item.item_type)}
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {cartItemLabel(item)}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--red)', textTransform: 'uppercase' }}>
+                      {isListing ? item.details?.rating : cartItemTypeLabel(item.item_type)}
+                    </div>
+                  </div>
+                  <span style={{ fontWeight: 800, fontSize: 14, flexShrink: 0, color: free ? '#29e7cd' : '#fff' }}>
+                    {free ? 'FREE' : `$${price.toFixed(2)}`}
+                  </span>
+                  <button
+                    onClick={() => removeFromCart(item.item_id, item.item_type)}
+                    aria-label="Remove from cart"
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid var(--panel-border)',
+                      color: '#ff4444',
+                      borderRadius: 4,
+                      width: 26,
+                      height: 26,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
 

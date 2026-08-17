@@ -65,21 +65,13 @@ export default function CreateLeague() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase
-      .from('leagues')
-      .insert([
-        {
-          game_id: gameId,
-          name,
-          created_by: session.user.id,
-          status: 'open',
-          entry_fee: fee,
-          max_players: parseInt(maxPlayers, 10) || 30,
-          rounds_per_opponent: parseInt(roundsPerOpponent, 10),
-        },
-      ])
-      .select('id, share_code')
-      .single();
+    const { data, error } = await supabase.rpc('create_league', {
+      p_game_id: gameId,
+      p_name: name,
+      p_entry_fee: fee,
+      p_max_players: parseInt(maxPlayers, 10) || 30,
+      p_rounds_per_opponent: parseInt(roundsPerOpponent, 10),
+    });
     setLoading(false);
 
     if (error) {

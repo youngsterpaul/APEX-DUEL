@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import SkeletonGrid from '../components/SkeletonGrid';
 import Pagination from '../components/Pagination';
+import { useCart } from '../lib/cartContext';
 
 interface LeagueRow {
   id: string;
@@ -25,11 +26,20 @@ interface Game {
 const PAGE_SIZE = 6;
 
 export default function Leagues() {
+  const { isInCart, addToCart } = useCart();
   const [leagues, setLeagues] = useState<LeagueRow[]>([]);
   const [gamesMap, setGamesMap] = useState<Record<string, Game>>({});
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<'all' | 'free' | 'paid'>('all');
+  const [cartMessage, setCartMessage] = useState<string | null>(null);
+
+  const handleAddToCart = async (id: string) => {
+    setCartMessage(null);
+    const { error } = await addToCart(id, 'league');
+    setCartMessage(error || 'Added to cart!');
+    setTimeout(() => setCartMessage(null), 2000);
+  };
 
   useEffect(() => {
     fetchLeaguesAndGames();
@@ -176,6 +186,22 @@ export default function Leagues() {
 
       {/* League Cards Grid */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+        {cartMessage && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 10,
+              borderRadius: 4,
+              fontSize: 13,
+              textAlign: 'center',
+              background: 'rgba(41,231,205,0.1)',
+              color: '#29e7cd',
+              border: '1px solid #29e7cd',
+            }}
+          >
+            {cartMessage}
+          </div>
+        )}
         {loading ? (
           <SkeletonGrid count={6} height={240} minWidth={320} />
         ) : pageLeagues.length === 0 ? (
@@ -317,22 +343,41 @@ export default function Leagues() {
                           CODE: <strong style={{ color: '#fff' }}>{l.share_code || 'N/A'}</strong>
                         </span>
 
-                        <Link
-                          href={`/leagues/${l.id}`}
-                          style={{
-                            border: '1px solid var(--red)',
-                            color: 'var(--red)',
-                            padding: '8px 16px',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            borderRadius: 4,
-                            textDecoration: 'none',
-                            transition: 'all 0.2s ease',
-                          }}
-                        >
-                          View Details
-                        </Link>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={() => handleAddToCart(l.id)}
+                            disabled={isInCart(l.id, 'league')}
+                            style={{
+                              background: isInCart(l.id, 'league') ? '#2a2d3a' : 'transparent',
+                              border: '1px solid var(--panel-border)',
+                              color: '#fff',
+                              padding: '8px 12px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              borderRadius: 4,
+                              cursor: isInCart(l.id, 'league') ? 'default' : 'pointer',
+                            }}
+                          >
+                            {isInCart(l.id, 'league') ? 'In Cart' : 'Add to Cart'}
+                          </button>
+                          <Link
+                            href={`/leagues/${l.id}`}
+                            style={{
+                              border: '1px solid var(--red)',
+                              color: 'var(--red)',
+                              padding: '8px 16px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              borderRadius: 4,
+                              textDecoration: 'none',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            View Details
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>

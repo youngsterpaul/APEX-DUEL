@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import SkeletonGrid from '../components/SkeletonGrid';
 import Pagination from '../components/Pagination';
+import { useCart } from '../lib/cartContext';
 
 interface Game {
   id: string;
@@ -21,12 +22,14 @@ interface Challenge {
   max_players: number;
   current_players: number;
   status: string;
+  type?: string;
 }
 
 const GAMES_PAGE_SIZE = 8;
 const LOBBIES_PAGE_SIZE = 6;
 
 export default function Challenges() {
+  const { isInCart, addToCart } = useCart();
   const [games, setGames] = useState<Game[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
   const [gamesPage, setGamesPage] = useState(1);
@@ -34,6 +37,14 @@ export default function Challenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [lobbiesLoading, setLobbiesLoading] = useState(true);
   const [lobbiesPage, setLobbiesPage] = useState(1);
+  const [cartMessage, setCartMessage] = useState<string | null>(null);
+
+  const handleAddToCart = async (id: string) => {
+    setCartMessage(null);
+    const { error } = await addToCart(id, 'challenge');
+    setCartMessage(error || 'Added to cart!');
+    setTimeout(() => setCartMessage(null), 2000);
+  };
 
   useEffect(() => {
     fetchGames();
@@ -165,6 +176,23 @@ export default function Challenges() {
           Live Lobbies
         </h2>
 
+        {cartMessage && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 10,
+              borderRadius: 4,
+              fontSize: 13,
+              textAlign: 'center',
+              background: 'rgba(41,231,205,0.1)',
+              color: '#29e7cd',
+              border: '1px solid #29e7cd',
+            }}
+          >
+            {cartMessage}
+          </div>
+        )}
+
         {lobbiesLoading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {Array.from({ length: 4 }).map((_, i) => (
@@ -196,24 +224,43 @@ export default function Challenges() {
                   <div>
                     <h4 style={{ margin: '0 0 4px 0', fontSize: 16 }}>{c.title}</h4>
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {gameTitleFor(c.game_id)} · Slots {c.current_players}/{c.max_players} · Entry ${c.entry_fee}
+                      {(c.type || '1v1').toUpperCase()} · {gameTitleFor(c.game_id)} · Slots {c.current_players}/{c.max_players} · Entry ${c.entry_fee}
                     </span>
                   </div>
-                  <Link
-                    href={`/duels/${c.id}`}
-                    style={{
-                      border: '1px solid var(--red)',
-                      color: 'var(--red)',
-                      padding: '8px 16px',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      borderRadius: 4,
-                      textDecoration: 'none',
-                    }}
-                  >
-                    Join Room
-                  </Link>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => handleAddToCart(c.id)}
+                      disabled={isInCart(c.id, 'challenge')}
+                      style={{
+                        background: isInCart(c.id, 'challenge') ? '#2a2d3a' : 'transparent',
+                        border: '1px solid var(--panel-border)',
+                        color: '#fff',
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        borderRadius: 4,
+                        cursor: isInCart(c.id, 'challenge') ? 'default' : 'pointer',
+                      }}
+                    >
+                      {isInCart(c.id, 'challenge') ? 'In Cart' : 'Add to Cart'}
+                    </button>
+                    <Link
+                      href={`/duels/${c.id}`}
+                      style={{
+                        border: '1px solid var(--red)',
+                        color: 'var(--red)',
+                        padding: '8px 16px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        borderRadius: 4,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      Join Room
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>
