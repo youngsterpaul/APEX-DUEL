@@ -65,13 +65,11 @@ export default function ListingDetailPage() {
     setBusy(true);
     setMessage(null);
     try {
-      const { error } = await supabase.rpc('buy_listing', { p_listing_id: listing.id });
+      const { data, error } = await supabase.rpc('start_transfer', { p_listing_id: listing.id });
       if (error) throw error;
-      setMessage({ type: 'success', text: 'Purchase recorded! The seller will be in touch to transfer the account.' });
-      fetchListing(listing.id);
+      router.push(`/transfer/${data.id}`);
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Could not complete purchase.' });
-    } finally {
+      setMessage({ type: 'error', text: err.message || 'Could not start the transfer.' });
       setBusy(false);
     }
   };
@@ -203,7 +201,7 @@ export default function ListingDetailPage() {
                   {inCart ? 'In cart' : 'Add to cart'}
                 </button>
                 <button onClick={handleBuyNow} disabled={busy} style={{ ...primaryBtn, flex: 1 }}>
-                  {busy ? 'Processing…' : 'Buy Now'}
+                  {busy ? 'Starting…' : 'Buy Now'}
                 </button>
               </div>
             ) : (

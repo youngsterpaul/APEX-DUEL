@@ -33,3 +33,21 @@ export async function uploadListingPhoto(sellerId: string, file: File): Promise<
   const { data } = supabase.storage.from(LISTING_BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
+
+const EVIDENCE_BUCKET = 'transfer-evidence';
+
+/** Uploads a piece of dispute evidence (screenshot, proof of ownership, etc). Bucket is private — only signed-in users can read/write. */
+export async function uploadTransferEvidence(transferId: string, uploaderId: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${transferId}/${uploaderId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(EVIDENCE_BUCKET)
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  // Bucket is private — store a signed URL valid for a year so it renders in the chat/dispute UI.
+  const { data, error } = await supabase.storage.from(EVIDENCE_BUCKET).createSignedUrl(path, 60 * 60 * 24 * 365);
+  if (error) throw error;
+  return data.signedUrl;
+}

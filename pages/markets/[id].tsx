@@ -75,8 +75,8 @@ export default function GameMarket() {
     setMessage({ type: 'success', text: 'Added to cart!' });
   };
 
-  // "Get Now" — buys exactly this one account immediately. Requires sign-in
-  // (a real purchase needs a real account), and only ever acts on a single listing at a time.
+  // "Get Now" — starts an escrowed transfer for exactly this one account immediately.
+  // Requires sign-in and locks the price out of the buyer's balance right away.
   const handleGetNow = async (listingId: string) => {
     setMessage(null);
     setProcessingId(listingId);
@@ -88,9 +88,13 @@ export default function GameMarket() {
       return;
     }
 
-    await addToCart(listingId);
+    const { data, error } = await supabase.rpc('start_transfer', { p_listing_id: listingId });
     setProcessingId(null);
-    router.push('/cart');
+    if (error) {
+      setMessage({ type: 'error', text: error.message || 'Could not start the transfer.' });
+      return;
+    }
+    router.push(`/transfer/${data.id}`);
   };
 
   const totalPages = Math.max(1, Math.ceil(listings.length / PAGE_SIZE));

@@ -8,7 +8,7 @@ interface Game {
   title: string;
 }
 
-type Tab = 'users' | 'game' | 'tournament' | 'settings';
+type Tab = 'users' | 'game' | 'tournament' | 'disputes' | 'settings';
 
 export default function AdminPage() {
   const [session, setSession] = useState<any>(null);
@@ -43,7 +43,7 @@ export default function AdminPage() {
         <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', marginBottom: 24 }}>Admin Panel</h1>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          {(['users', 'game', 'tournament', 'settings'] as Tab[]).map((t) => (
+          {(['users', 'game', 'tournament', 'disputes', 'settings'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -53,7 +53,7 @@ export default function AdminPage() {
                 background: tab === t ? 'var(--red)' : 'transparent', color: '#fff',
               }}
             >
-              {t === 'users' ? 'Users' : t === 'game' ? 'Add Game' : t === 'tournament' ? 'Create Tournament' : 'Fee Settings'}
+              {t === 'users' ? 'Users' : t === 'game' ? 'Add Game' : t === 'tournament' ? 'Create Tournament' : t === 'disputes' ? 'Transfer Disputes' : 'Fee Settings'}
             </button>
           ))}
         </div>
@@ -61,6 +61,7 @@ export default function AdminPage() {
         {tab === 'users' && <UsersTab />}
         {tab === 'game' && <AddGameTab />}
         {tab === 'tournament' && <CreateTournamentTab adminId={session.user.id} />}
+        {tab === 'disputes' && <DisputesTab />}
         {tab === 'settings' && <SettingsTab />}
       </section>
     </div>
@@ -234,6 +235,190 @@ function CreateTournamentTab({ adminId }: { adminId: string }) {
       </select>
       <button type="submit" disabled={busy} style={primaryButtonStyle}>{busy ? 'Creating…' : 'Create tournament'}</button>
     </form>
+  );
+}
+
+function DisputesTab() {
+  const [transfers, setTransfers] = useState<any[]>([]);
+  const [listingsMap, setListingsMap] = useState<Record<string, any>>({});
+  const [profilesMap, setProfilesMap] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchDisputes = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('transfers')
+      .select('*')
+      .eq('status', 'disputed')
+      .order('dispute_raised_at', { ascending: true });
+
+    const rows = data || [];
+    setTransfers(rows);
+
+    if (rows.length > 0) {
+      const listingIds = Array.from(new Set(rows.map((t) => t.listing_id)));
+      const peopleIds = Array.from(new Set(rows.flatMap((t) => [t.buyer_id, t.seller_id])));
+      const [{ data: listings }, { data: profiles }] = await Promise.all([
+        supabase.from('account_listings').select('id, in_game_username, price').in('id', listingIds),
+        supabase.from('profiles').select('id, username, email').in('id', peopleIds),
+      ]);
+      const lMap: Record<string, any> = {};
+      (listings || []).forEach((l: any) => (lMap[l.id] = l));
+      const pMap: Record<string, any> = {};
+      (profiles || []).forEach((p: any) => (pMap[p.id] = p));
+      setListingsMap(lMap);
+      setProfilesMap(pMap);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchDisputes();
+  }, []);
+
+  const resolve = async (transferId: string, resolution: 'release_to_seller' | 'refund_buyer') => {
+    const confirmText =
+      resolution === 'release_to_seller'
+        ? 'Release the escrowed funds to the seller? This cannot be undone.'
+        : "Refund the buyer and reopen the listing? This cannot be undone.";
+    if (!window.confirm(confirmText)) return;
+
+    setBusyId(transferId);
+    setMessage(null);
+    const { error } = await supabase.rpc('admin_resolve_transfer', {
+      p_transfer_id: transferId,
+      p_resolution: resolution,
+    });
+    setBusyId(null);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    setMessage({
+      type: 'success',
+      text: resolution === 'release_to_seller' ? 'Funds released to the seller.' : 'Buyer refunded and listing reopened.',
+    });
+    fetchDisputes();
+  };
+
+  if (loading) return <p style={{ color: 'var(--muted)' }}>Loading disputes…</p>;
+
+  return (
+    <div>
+      {message && (
+        <div
+          style={{
+            padding: 10,
+            marginBottom: 14,
+            borderRadius: 4,
+            fontSize: 13,
+            background: message.type === 'success' ? 'rgba(0,255,100,0.1)' : 'rgba(255,0,0,0.1)',
+            color: message.type === 'success' ? '#00ff64' : '#ff4444',
+            border: `1px solid ${message.type === 'success' ? '#00ff64' : '#ff4444'}`,
+          }}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {transfers.length === 0 ? (
+        <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 30, textAlign: 'center', color: 'var(--muted)' }}>
+          No open disputes. 🎉
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {transfers.map((t) => {
+            const listing = listingsMap[t.listing_id];
+            const buyer = profilesMap[t.buyer_id];
+            const seller = profilesMap[t.seller_id];
+            return (
+              <div key={t.id} style={{ background: '#131627', border: '1px solid #ff4444', borderRadius: 8, padding: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>{listing?.in_game_username || 'Account'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      Buyer: <strong style={{ color: '#fff' }}>{buyer?.username || buyer?.email}</strong> · Seller:{' '}
+                      <strong style={{ color: '#fff' }}>{seller?.username || seller?.email}</strong> · Escrowed: ${t.price?.toFixed(2)}
+                    </div>
+                  </div>
+                  <a href={`/transfer/${t.id}`} target="_blank" rel="noreferrer" style={{ color: 'var(--red)', fontSize: 12, alignSelf: 'center' }}>
+                    Open full chat ↗
+                  </a>
+                </div>
+
+                <div style={{ background: '#0a0b14', border: '1px solid var(--panel-border)', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                    Buyer's report — {t.dispute_type}
+                  </p>
+                  <p style={{ fontSize: 13, marginBottom: 8 }}>{t.dispute_reason}</p>
+                  {t.dispute_evidence_urls?.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {t.dispute_evidence_urls.map((url: string, i: number) => (
+                        <a key={i} href={url} target="_blank" rel="noreferrer">
+                          <img src={url} alt="Evidence" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--panel-border)' }} />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {t.seller_responded_at ? (
+                  <div style={{ background: '#0a0b14', border: '1px solid var(--panel-border)', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+                    <p style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>Seller's response</p>
+                    <p style={{ fontSize: 13, marginBottom: 4 }}>{t.seller_response_note}</p>
+                    {t.seller_response_email && <p style={{ fontSize: 12 }}>Account email: <strong>{t.seller_response_email}</strong></p>}
+                    {t.seller_response_username && <p style={{ fontSize: 12 }}>In-game username: <strong>{t.seller_response_username}</strong></p>}
+                    {t.seller_response_evidence_urls?.length > 0 && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                        {t.seller_response_evidence_urls.map((url: string, i: number) => (
+                          <a key={i} href={url} target="_blank" rel="noreferrer">
+                            <img src={url} alt="Evidence" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--panel-border)' }} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Seller has not responded yet.</p>
+                )}
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={() => resolve(t.id, 'release_to_seller')}
+                    disabled={busyId === t.id}
+                    style={{ ...primaryButtonStyle, marginTop: 0, flex: 1 }}
+                  >
+                    {busyId === t.id ? 'Working…' : 'Release Funds to Seller'}
+                  </button>
+                  <button
+                    onClick={() => resolve(t.id, 'refund_buyer')}
+                    disabled={busyId === t.id}
+                    style={{
+                      flex: 1,
+                      background: 'transparent',
+                      color: '#ff4444',
+                      border: '1px solid #ff4444',
+                      borderRadius: 4,
+                      padding: '12px',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {busyId === t.id ? 'Working…' : 'Refund Buyer'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

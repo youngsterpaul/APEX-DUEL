@@ -138,6 +138,9 @@ export interface League {
   name: string;
   created_by: string;
   status: 'open' | 'completed' | 'cancelled';
+  entry_fee?: number | null;
+  max_players?: number | null;
+  rounds_per_opponent?: number | null;
   share_code: string;
   created_at: string;
   game_title?: string;
@@ -164,16 +167,43 @@ export interface LeagueMatch {
   created_at: string;
 }
 
-export interface League {
+export type TransferStatus = 'in_progress' | 'disputed' | 'completed' | 'cancelled';
+export type TransferDisputeType = 'mismatch' | 'cheated' | 'wrong_account' | 'failed_transfer';
+
+export interface Transfer {
   id: string;
-  game_id: string;
-  name: string;
-  created_by: string;
-  status: 'open' | 'completed' | 'cancelled';
-  entry_fee?: number | null;
-  max_players?: number | null;
-  rounds_per_opponent?: number | null;
-  share_code: string;
+  listing_id: string;
+  buyer_id: string;
+  seller_id: string;
+  price: number;
+  status: TransferStatus;
+
+  buyer_confirmed: boolean;
+  buyer_confirmed_at: string | null;
+  seller_confirmed: boolean;
+  seller_confirmed_at: string | null;
+
+  dispute_type: TransferDisputeType | null;
+  dispute_reason: string | null;
+  dispute_evidence_urls: string[];
+  dispute_raised_by: string | null;
+  dispute_raised_at: string | null;
+
+  seller_response_note: string | null;
+  seller_response_email: string | null;
+  seller_response_username: string | null;
+  seller_response_evidence_urls: string[];
+  seller_responded_at: string | null;
+
   created_at: string;
-  game_title?: string;
+  completed_at: string | null;
+  cancelled_at: string | null;
+}
+
+export interface TransferMessage {
+  id: string;
+  transfer_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
 }
