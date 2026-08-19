@@ -17,6 +17,8 @@ interface Tournament {
   payout_places: number;
   status: string;
   current_stage: number;
+  starts_at: string | null;
+  ends_at: string | null;
   share_code: string;
   created_at: string;
 }
@@ -330,6 +332,13 @@ export default function Tournaments() {
                             <span style={{ fontSize: 13, fontWeight: 700 }}>Top {t.payout_places}</span>
                           </div>
                         </div>
+
+                        {t.starts_at && (
+                          <p style={{ fontSize: 12, color: new Date(t.starts_at).getTime() <= Date.now() ? '#ff4444' : 'var(--muted)', marginBottom: 12 }}>
+                            {new Date(t.starts_at).getTime() <= Date.now() ? '🔒 Registration closed — already started' : `Starts ${new Date(t.starts_at).toLocaleString()}`}
+                            {t.ends_at && ` · Ends ${new Date(t.ends_at).toLocaleDateString()}`}
+                          </p>
+                        )}
                       </div>
 
                       {/* Footer Actions */}
