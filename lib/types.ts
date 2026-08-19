@@ -16,6 +16,8 @@ export interface Profile {
   balance: number;
   gender: string | null;
   is_admin: boolean;
+  whatsapp_username?: string | null;
+  whatsapp_phone?: string | null;
 }
 
 export interface LedgerEntry {
@@ -77,8 +79,19 @@ export interface Duel {
   scheduled_at: string | null;
   share_code: string;
   created_at: string;
+  proposed_winner_id: string | null;
+  proposed_by: string | null;
+  proposed_at: string | null;
   player1?: Profile;
   player2?: Profile;
+}
+
+export interface DuelMessage {
+  id: string;
+  duel_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
 }
 
 export interface Tournament {
@@ -92,6 +105,8 @@ export interface Tournament {
   payout_places: 1 | 2 | 3;
   status: 'registration' | 'active' | 'completed' | 'cancelled';
   current_stage: number;
+  starts_at: string | null;
+  ends_at: string | null;
   share_code: string;
   created_at: string;
   game_title?: string;
@@ -141,6 +156,8 @@ export interface League {
   entry_fee?: number | null;
   max_players?: number | null;
   rounds_per_opponent?: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
   share_code: string;
   created_at: string;
   game_title?: string;
@@ -166,7 +183,6 @@ export interface LeagueMatch {
   status: 'open' | 'pending' | 'completed' | 'disputed';
   created_at: string;
 }
-
 export type TransferStatus = 'in_progress' | 'disputed' | 'completed' | 'cancelled';
 export type TransferDisputeType = 'mismatch' | 'cheated' | 'wrong_account' | 'failed_transfer';
 

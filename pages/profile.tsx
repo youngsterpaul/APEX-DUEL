@@ -13,6 +13,8 @@ export default function ProfilePage() {
   const [amount, setAmount] = useState('');
   const [username, setUsername] = useState('');
   const [gender, setGender] = useState('');
+  const [whatsappUsername, setWhatsappUsername] = useState('');
+  const [whatsappPhone, setWhatsappPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -31,6 +33,8 @@ export default function ProfilePage() {
       setProfile(data);
       setUsername(data.username || '');
       setGender(data.gender || '');
+      setWhatsappUsername(data.whatsapp_username || '');
+      setWhatsappPhone(data.whatsapp_phone || '');
     }
     const { data: ledgerData } = await supabase
       .from('ledger')
@@ -86,6 +90,22 @@ export default function ProfilePage() {
       const { error } = await supabase.rpc('update_my_profile', { p_username: username, p_gender: gender });
       if (error) throw error;
       setMessage({ type: 'success', text: 'Profile updated.' });
+      if (session) fetchProfile(session.user.id);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveWhatsapp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc('update_my_whatsapp', { p_username: whatsappUsername, p_phone: whatsappPhone });
+      if (error) throw error;
+      setMessage({ type: 'success', text: 'WhatsApp contact updated.' });
       if (session) fetchProfile(session.user.id);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
@@ -169,6 +189,20 @@ export default function ProfilePage() {
           </select>
           <button type="submit" disabled={busy} style={primaryButtonStyle}>
             Save changes
+          </button>
+        </form>
+
+        <form onSubmit={handleSaveWhatsapp} style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, marginBottom: 20 }}>
+          <h3 style={{ marginTop: 0, textTransform: 'uppercase', fontSize: 14 }}>💬 Connect WhatsApp</h3>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+            Shown to your match opponent once you both join a duel, and to your buyer/seller during an account transfer.
+          </p>
+          <label style={labelStyle}>WhatsApp username</label>
+          <input value={whatsappUsername} onChange={(e) => setWhatsappUsername(e.target.value)} style={inputStyle} placeholder="Optional display name" />
+          <label style={labelStyle}>WhatsApp phone number</label>
+          <input value={whatsappPhone} onChange={(e) => setWhatsappPhone(e.target.value)} style={inputStyle} placeholder="+1 555 123 4567" />
+          <button type="submit" disabled={busy} style={primaryButtonStyle}>
+            Save WhatsApp contact
           </button>
         </form>
 

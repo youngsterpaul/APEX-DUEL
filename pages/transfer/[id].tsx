@@ -18,6 +18,8 @@ interface Profile {
   id: string;
   username: string;
   avatar_url?: string | null;
+  whatsapp_username?: string | null;
+  whatsapp_phone?: string | null;
 }
 
 const DISPUTE_OPTIONS: { value: TransferDisputeType; label: string }[] = [
@@ -78,7 +80,7 @@ export default function TransferChatPage() {
 
     const [{ data: listingData }, { data: profilesData }, { data: messagesData }] = await Promise.all([
       supabase.from('account_listings').select('id, in_game_username, price, game_id, photos').eq('id', transferData.listing_id).maybeSingle(),
-      supabase.from('profiles').select('id, username, avatar_url').in('id', [transferData.buyer_id, transferData.seller_id]),
+      supabase.from('profiles').select('id, username, avatar_url, whatsapp_username, whatsapp_phone').in('id', [transferData.buyer_id, transferData.seller_id]),
       supabase.from('transfer_messages').select('*').eq('transfer_id', id).order('created_at', { ascending: true }),
     ]);
 
@@ -297,6 +299,28 @@ export default function TransferChatPage() {
           >
             🔒 ${transfer.price.toFixed(2)} is locked in escrow and will only be released to the seller once both of you confirm the
             transfer is complete.
+          </div>
+        )}
+
+        {/* WhatsApp contact reveal — buyer and seller can see each other's contact info */}
+        {otherParty && (
+          <div style={{ marginTop: 12, background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 14 }}>
+            <p style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 8 }}>
+              {isBuyer ? "Seller's" : "Buyer's"} contact
+            </p>
+            <p style={{ fontSize: 13, marginBottom: 4 }}>Username: <strong>{otherParty.username || '—'}</strong></p>
+            {otherParty.whatsapp_phone || otherParty.whatsapp_username ? (
+              
+                href={`https://wa.me/${(otherParty.whatsapp_phone || '').replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, color: '#25D366', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+              >
+                💬 WhatsApp: {otherParty.whatsapp_username || otherParty.whatsapp_phone}
+              </a>
+            ) : (
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>They haven't connected WhatsApp yet — use the chat below.</p>
+            )}
           </div>
         )}
 

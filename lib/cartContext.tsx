@@ -3,13 +3,14 @@ import { supabase } from './supabaseClient';
 
 const GUEST_CART_KEY = 'apexduel_guest_cart';
 
-export type CartItemType = 'listing' | 'tournament' | 'league' | 'challenge';
+export type CartItemType = 'listing' | 'tournament' | 'league' | 'challenge' | 'duel';
 
 const TABLE_FOR_TYPE: Record<CartItemType, string> = {
   listing: 'account_listings',
   tournament: 'tournaments',
   league: 'leagues',
   challenge: 'challenges',
+  duel: 'duels',
 };
 
 export interface CartDetails {
@@ -57,6 +58,8 @@ export function cartItemLabel(item: CartItem): string {
       return d.name || 'League';
     case 'challenge':
       return d.title || `${(d.type || '1v1').toUpperCase()} Challenge`;
+    case 'duel':
+      return `${d.game || '1v1'} Match`;
     default:
       return 'Item';
   }
@@ -81,6 +84,8 @@ export function cartItemTypeLabel(itemType: CartItemType): string {
       return 'League';
     case 'challenge':
       return 'Challenge';
+    case 'duel':
+      return '1v1';
     default:
       return 'Item';
   }

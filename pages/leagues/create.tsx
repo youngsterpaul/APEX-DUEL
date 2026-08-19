@@ -21,6 +21,8 @@ export default function CreateLeague() {
   const [entryFee, setEntryFee] = useState('5');
   const [maxPlayers, setMaxPlayers] = useState('30');
   const [roundsPerOpponent, setRoundsPerOpponent] = useState<'1' | '2'>('1');
+  const [startsAt, setStartsAt] = useState('');
+  const [endsAt, setEndsAt] = useState('');
 
   useEffect(() => {
     supabase
@@ -64,6 +66,17 @@ export default function CreateLeague() {
       return;
     }
 
+    const startsIso = startsAt ? new Date(startsAt).toISOString() : null;
+    const endsIso = endsAt ? new Date(endsAt).toISOString() : null;
+    if (startsIso && new Date(startsIso).getTime() <= Date.now()) {
+      setMessage({ type: 'error', text: 'Start time must be in the future.' });
+      return;
+    }
+    if (startsIso && endsIso && new Date(endsIso).getTime() <= new Date(startsIso).getTime()) {
+      setMessage({ type: 'error', text: 'End time must be after the start time.' });
+      return;
+    }
+
     setLoading(true);
     const { data, error } = await supabase.rpc('create_league', {
       p_game_id: gameId,
@@ -71,6 +84,8 @@ export default function CreateLeague() {
       p_entry_fee: fee,
       p_max_players: parseInt(maxPlayers, 10) || 30,
       p_rounds_per_opponent: parseInt(roundsPerOpponent, 10),
+      p_starts_at: startsIso,
+      p_ends_at: endsIso,
     });
     setLoading(false);
 
@@ -187,6 +202,20 @@ export default function CreateLeague() {
               <option value="1">Once</option>
               <option value="2">Twice</option>
             </select>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Start time</label>
+            <input type="datetime-local" required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} style={inputStyle} />
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>No one can join after this time.</p>
+          </div>
+
+          <div>
+            <label style={labelStyle}>End time</label>
+            <input type="datetime-local" required value={endsAt} onChange={(e) => setEndsAt(e.target.value)} style={inputStyle} />
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              Anyone who never reported a pending match forfeits it to their opponent at this time.
+            </p>
           </div>
 
           {/* Free to participate vs paid entry — categorization shown on the leagues page */}

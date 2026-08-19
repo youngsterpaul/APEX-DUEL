@@ -245,6 +245,19 @@ function DisputesTab() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [settling, setSettling] = useState(false);
+
+  const handleSettleExpired = async () => {
+    setSettling(true);
+    setMessage(null);
+    const { data, error } = await supabase.rpc('admin_settle_all_expired_events');
+    setSettling(false);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    setMessage({ type: 'success', text: `Settled ${data} match${data === 1 ? '' : 'es'} across expired tournaments/leagues.` });
+  };
 
   const fetchDisputes = async () => {
     setLoading(true);
@@ -308,6 +321,18 @@ function DisputesTab() {
 
   return (
     <div>
+      <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h3 style={{ margin: '0 0 4px', fontSize: 14, textTransform: 'uppercase' }}>Auto-forfeit expired events</h3>
+          <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
+            Any tournament/league past its end time gets swept: players who never reported a pending match forfeit it to their opponent.
+          </p>
+        </div>
+        <button onClick={handleSettleExpired} disabled={settling} style={{ ...primaryButtonStyle, marginTop: 0, width: 'auto', padding: '10px 20px' }}>
+          {settling ? 'Settling…' : 'Settle Expired Events'}
+        </button>
+      </div>
+
       {message && (
         <div
           style={{
