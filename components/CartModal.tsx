@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { useCart, cartItemLabel, cartItemPrice, cartItemTypeLabel } from '../lib/cartContext';
 
 interface CartModalProps {
@@ -141,9 +142,32 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
         </div>
 
         {items.length > 0 && (
-          <div style={{ borderTop: '1px solid var(--panel-border)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 15, fontWeight: 700 }}>Total</span>
-            <span style={{ fontSize: 20, fontWeight: 900 }}>${total.toFixed(2)}</span>
+          <div style={{ borderTop: '1px solid var(--panel-border)', paddingTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>Total</span>
+              <span style={{ fontSize: 20, fontWeight: 900 }}>${total.toFixed(2)}</span>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
+              Each item checks out on its own — accounts, tournaments, leagues, and matches are handled separately.
+            </p>
+            <Link
+              href="/checkout"
+              onClick={onClose}
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                background: 'var(--red)',
+                color: '#fff',
+                padding: '12px',
+                fontWeight: 700,
+                fontSize: 13,
+                textTransform: 'uppercase',
+                borderRadius: 4,
+                textDecoration: 'none',
+              }}
+            >
+              Go to Checkout
+            </Link>
           </div>
         )}
       </div>

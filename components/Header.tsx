@@ -16,6 +16,8 @@ const navLinks: NavLink[] = [
   { href: '/challenges', label: 'Challenges' },
   { href: '/tournaments', label: 'Tournaments' },
   { href: '/leagues', label: 'Leagues' },
+  { href: '/duels', label: '1v1' },
+  { href: '/transfers', label: 'Transfers' },
 ];
 
 export default function Header() {
@@ -198,14 +200,6 @@ export default function Header() {
 
       {/* Cart popup */}
       <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} />
-
-      <style jsx global>{`
-        @media (max-width: 900px) {
-          .desktop-nav {
-            display: none !important;
-          }
-        }
-      `}</style>
     </>
   );
 }
