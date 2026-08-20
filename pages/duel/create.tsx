@@ -1,0 +1,131 @@
+import Head from 'next/head';
+import { useState } from 'react';
+import { useRouter } from 'next/router';
+import { supabase } from '../../lib/supabaseClient';
+
+export default function CreateDuel() {
+  const router = useRouter();
+  const [game, setGame] = useState('');
+  const [freeToJoin, setFreeToJoin] = useState(true);
+  const [entryFee, setEntryFee] = useState('5');
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [createdCode, setCreatedCode] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
+    if (!game.trim()) {
+      setMessage({ type: 'error', text: 'Enter which game this match is for.' });
+      return;
+    }
+
+    const fee = freeToJoin ? 0 : parseFloat(entryFee) || 0;
+    if (!freeToJoin && fee < 1) {
+      setMessage({ type: 'error', text: 'Entry fee must be at least $1, or mark the match as free.' });
+      return;
+    }
+
+    const scheduledIso = scheduledAt ? new Date(scheduledAt).toISOString() : null;
+    if (scheduledIso && new Date(scheduledIso).getTime() <= Date.now()) {
+      setMessage({ type: 'error', text: 'Start time must be in the future.' });
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase.rpc('create_duel', {
+      p_game: game.trim(),
+      p_entry_fee: fee,
+      p_scheduled_at: scheduledIso,
+    });
+    setLoading(false);
+
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    setCreatedCode(data.share_code);
+  };
+
+  if (createdCode) {
+    return (
+      <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
+        <Head><title>Match Created | ApexDuel</title></Head>
+        <section style={{ maxWidth: 620, margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
+          <h2 className="display" style={{ fontSize: 26, marginBottom: 12, textTransform: 'uppercase' }}>Match Created!</h2>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>Share this code with your opponent:</p>
+          <div className="mono" style={{ display: 'inline-block', background: '#131627', border: '1px solid var(--panel-border)', padding: '16px 32px', fontSize: 28, letterSpacing: '0.3em', borderRadius: 6, color: 'var(--gold)', marginBottom: 24 }}>
+            {createdCode}
+          </div>
+          <div>
+            <button onClick={() => router.push('/duels')} style={primaryButtonStyle}>Go to Matches</button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
+      <Head><title>Create a 1v1 Match | ApexDuel</title></Head>
+
+      <section style={{ maxWidth: 620, margin: '0 auto', padding: '48px 24px 80px' }}>
+        <button onClick={() => router.push('/duels')} style={backLinkStyle}>← Back to Matches</button>
+
+        <h1 className="display" style={{ fontSize: 'clamp(26px, 4vw, 38px)', textTransform: 'uppercase', margin: '20px 0 8px' }}>
+          Create a 1v1 Match
+        </h1>
+        <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 32 }}>
+          Once someone joins, you can both no longer be joined by others — and a chat opens between you two.
+        </p>
+
+        {message && (
+          <div style={{ padding: 12, marginBottom: 20, borderRadius: 4, fontSize: 13, background: 'rgba(255,0,0,0.1)', color: '#ff4444', border: '1px solid #ff4444' }}>
+            {message.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div>
+            <label style={labelStyle}>Game</label>
+            <input required value={game} onChange={(e) => setGame(e.target.value)} style={inputStyle} placeholder="e.g. Apex Legends" />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Start time (optional)</label>
+            <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} style={inputStyle} />
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              If set, no one can join this match after this time passes.
+            </p>
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+            <input type="checkbox" checked={freeToJoin} onChange={(e) => setFreeToJoin(e.target.checked)} />
+            Make this match free to join
+          </label>
+
+          {!freeToJoin && (
+            <div>
+              <label style={labelStyle}>Entry fee per player ($, min 1)</label>
+              <input type="number" min="1" step="0.01" required value={entryFee} onChange={(e) => setEntryFee(e.target.value)} style={inputStyle} />
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+                Charged to you now, and to your opponent when they join. Winner takes the pot once you both confirm the result.
+              </p>
+            </div>
+          )}
+
+          <button type="submit" disabled={loading} style={primaryButtonStyle}>
+            {loading ? 'Creating…' : 'Create Match'}
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' };
+const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 14px', background: '#131627', border: '1px solid var(--panel-border)', color: '#fff', borderRadius: 4, fontSize: 14 };
+const primaryButtonStyle: React.CSSProperties = { background: 'var(--red)', color: '#0a0b14', padding: '13px', fontWeight: 700, border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', borderRadius: 4, fontSize: 14, width: '100%' };
+const backLinkStyle: React.CSSProperties = { background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 13, cursor: 'pointer', textAlign: 'left', padding: 0 };
