@@ -10,6 +10,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [gender, setGender] = useState('');
+  const [whatsappUsername, setWhatsappUsername] = useState('');
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [discordUsername, setDiscordUsername] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -22,7 +25,15 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { username, gender } },
+          options: {
+            data: {
+              username,
+              gender,
+              whatsapp_username: whatsappUsername || null,
+              whatsapp_phone: whatsappPhone || null,
+              discord_username: discordUsername || null,
+            },
+          },
         });
         if (error) throw error;
         setMessage({ type: 'success', text: 'Account created! Check your email to confirm, then sign in.' });
@@ -97,6 +108,15 @@ export default function LoginPage() {
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
+
+              <label style={labelStyle}>WhatsApp Username <span style={optionalTag}>optional</span></label>
+              <input value={whatsappUsername} onChange={(e) => setWhatsappUsername(e.target.value)} style={inputStyle} placeholder="Display name" />
+
+              <label style={labelStyle}>WhatsApp Phone <span style={optionalTag}>optional</span></label>
+              <input value={whatsappPhone} onChange={(e) => setWhatsappPhone(e.target.value)} style={inputStyle} placeholder="+254 7XX XXX XXX" />
+
+              <label style={labelStyle}>Discord Username <span style={optionalTag}>optional</span></label>
+              <input value={discordUsername} onChange={(e) => setDiscordUsername(e.target.value)} style={inputStyle} placeholder="yourname" />
             </>
           )}
 
@@ -123,6 +143,14 @@ const labelStyle: React.CSSProperties = {
   marginTop: 16,
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
+};
+
+const optionalTag: React.CSSProperties = {
+  color: 'var(--muted)',
+  fontSize: 10,
+  textTransform: 'none',
+  letterSpacing: 'normal',
+  fontWeight: 400,
 };
 
 const inputStyle: React.CSSProperties = {

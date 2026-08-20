@@ -18,6 +18,7 @@ export interface Profile {
   is_admin: boolean;
   whatsapp_username?: string | null;
   whatsapp_phone?: string | null;
+  discord_username?: string | null;
 }
 
 export interface LedgerEntry {

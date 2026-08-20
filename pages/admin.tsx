@@ -8,7 +8,7 @@ interface Game {
   title: string;
 }
 
-type Tab = 'users' | 'game' | 'tournament' | 'disputes' | 'settings';
+type Tab = 'users' | 'game' | 'tournament' | 'disputes' | 'withdrawals' | 'settings';
 
 export default function AdminPage() {
   const [session, setSession] = useState<any>(null);
@@ -43,7 +43,7 @@ export default function AdminPage() {
         <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', marginBottom: 24 }}>Admin Panel</h1>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          {(['users', 'game', 'tournament', 'disputes', 'settings'] as Tab[]).map((t) => (
+          {(['users', 'game', 'tournament', 'disputes', 'withdrawals', 'settings'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -53,7 +53,7 @@ export default function AdminPage() {
                 background: tab === t ? 'var(--red)' : 'transparent', color: '#fff',
               }}
             >
-              {t === 'users' ? 'Users' : t === 'game' ? 'Add Game' : t === 'tournament' ? 'Create Tournament' : t === 'disputes' ? 'Transfer Disputes' : 'Fee Settings'}
+              {t === 'users' ? 'Users' : t === 'game' ? 'Add Game' : t === 'tournament' ? 'Create Tournament' : t === 'disputes' ? 'Transfer Disputes' : t === 'withdrawals' ? 'Withdrawals' : 'Fee Settings'}
             </button>
           ))}
         </div>
@@ -62,6 +62,7 @@ export default function AdminPage() {
         {tab === 'game' && <AddGameTab />}
         {tab === 'tournament' && <CreateTournamentTab adminId={session.user.id} />}
         {tab === 'disputes' && <DisputesTab />}
+        {tab === 'withdrawals' && <WithdrawalsTab />}
         {tab === 'settings' && <SettingsTab />}
       </section>
     </div>
@@ -436,6 +437,106 @@ function DisputesTab() {
                     }}
                   >
                     {busyId === t.id ? 'Working…' : 'Refund Buyer'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WithdrawalsTab() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [profilesMap, setProfilesMap] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('withdrawal_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+
+    const rows = data || [];
+    setRequests(rows);
+
+    if (rows.length > 0) {
+      const ids = Array.from(new Set(rows.map((r) => r.profile_id)));
+      const { data: profiles } = await supabase.from('profiles').select('id, username, email').in('id', ids);
+      const map: Record<string, any> = {};
+      (profiles || []).forEach((p: any) => (map[p.id] = p));
+      setProfilesMap(map);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const resolve = async (requestId: string, action: 'complete' | 'reject') => {
+    const confirmText =
+      action === 'complete'
+        ? "Mark as paid out? Only do this after you've actually sent the money."
+        : 'Reject this withdrawal and refund the balance?';
+    if (!window.confirm(confirmText)) return;
+
+    setBusyId(requestId);
+    setMessage(null);
+    const { error } = await supabase.rpc(action === 'complete' ? 'admin_complete_withdrawal' : 'admin_reject_withdrawal', {
+      p_request_id: requestId,
+    });
+    setBusyId(null);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    setMessage({ type: 'success', text: action === 'complete' ? 'Marked as paid out.' : 'Rejected and refunded.' });
+    fetchRequests();
+  };
+
+  if (loading) return <p style={{ color: 'var(--muted)' }}>Loading withdrawal requests…</p>;
+
+  return (
+    <div>
+      {message && (
+        <div style={{ padding: 10, marginBottom: 14, borderRadius: 4, fontSize: 13, background: message.type === 'success' ? 'rgba(0,255,100,0.1)' : 'rgba(255,0,0,0.1)', color: message.type === 'success' ? '#00ff64' : '#ff4444', border: `1px solid ${message.type === 'success' ? '#00ff64' : '#ff4444'}` }}>
+          {message.text}
+        </div>
+      )}
+
+      {requests.length === 0 ? (
+        <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 30, textAlign: 'center', color: 'var(--muted)' }}>
+          No pending withdrawal requests.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {requests.map((r) => {
+            const user = profilesMap[r.profile_id];
+            return (
+              <div key={r.id} style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 15 }}>${Number(r.amount).toFixed(2)} via {r.method === 'mpesa' ? 'M-Pesa' : r.method === 'crypto' ? 'Crypto' : 'Google Pay'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    {user?.username || user?.email} · Send to: <strong style={{ color: '#fff' }}>{r.destination}</strong> · Requested {new Date(r.created_at).toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => resolve(r.id, 'complete')} disabled={busyId === r.id} style={{ ...primaryButtonStyle, marginTop: 0, width: 'auto', padding: '10px 16px' }}>
+                    {busyId === r.id ? 'Working…' : 'Mark Paid'}
+                  </button>
+                  <button
+                    onClick={() => resolve(r.id, 'reject')}
+                    disabled={busyId === r.id}
+                    style={{ background: 'transparent', color: '#ff4444', border: '1px solid #ff4444', borderRadius: 4, padding: '10px 16px', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', cursor: 'pointer' }}
+                  >
+                    Reject
                   </button>
                 </div>
               </div>

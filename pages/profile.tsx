@@ -10,13 +10,15 @@ export default function ProfilePage() {
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [amount, setAmount] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const [username, setUsername] = useState('');
   const [gender, setGender] = useState('');
   const [whatsappUsername, setWhatsappUsername] = useState('');
   const [whatsappPhone, setWhatsappPhone] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [discordUsername, setDiscordUsername] = useState('');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -35,6 +37,7 @@ export default function ProfilePage() {
       setGender(data.gender || '');
       setWhatsappUsername(data.whatsapp_username || '');
       setWhatsappPhone(data.whatsapp_phone || '');
+      setDiscordUsername(data.discord_username || '');
     }
     const { data: ledgerData } = await supabase
       .from('ledger')
@@ -46,66 +49,45 @@ export default function ProfilePage() {
     setLoading(false);
   };
 
-  const handleDeposit = async () => {
+  const startEditing = () => {
+    if (profile) {
+      setUsername(profile.username || '');
+      setGender(profile.gender || '');
+      setWhatsappUsername(profile.whatsapp_username || '');
+      setWhatsappPhone(profile.whatsapp_phone || '');
+      setDiscordUsername(profile.discord_username || '');
+    }
     setMessage(null);
-    const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return setMessage({ type: 'error', text: 'Enter a valid amount.' });
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc('simulate_deposit', { p_amount: amt });
-      if (error) throw error;
-      setMessage({ type: 'success', text: `Deposited $${amt.toFixed(2)}.` });
-      setAmount('');
-      if (session) fetchProfile(session.user.id);
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
-    } finally {
-      setBusy(false);
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+    setMessage(null);
+    if (profile) {
+      setUsername(profile.username || '');
+      setGender(profile.gender || '');
+      setWhatsappUsername(profile.whatsapp_username || '');
+      setWhatsappPhone(profile.whatsapp_phone || '');
+      setDiscordUsername(profile.discord_username || '');
     }
   };
 
-  const handleWithdraw = async () => {
-    setMessage(null);
-    const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return setMessage({ type: 'error', text: 'Enter a valid amount.' });
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc('simulate_withdrawal', { p_amount: amt });
-      if (error) throw error;
-      setMessage({ type: 'success', text: `Withdrew $${amt.toFixed(2)}.` });
-      setAmount('');
-      if (session) fetchProfile(session.user.id);
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
     setBusy(true);
     try {
-      const { error } = await supabase.rpc('update_my_profile', { p_username: username, p_gender: gender });
+      const { error } = await supabase.rpc('update_my_social_profile', {
+        p_username: username,
+        p_gender: gender,
+        p_whatsapp_username: whatsappUsername,
+        p_whatsapp_phone: whatsappPhone,
+        p_discord_username: discordUsername,
+      });
       if (error) throw error;
       setMessage({ type: 'success', text: 'Profile updated.' });
-      if (session) fetchProfile(session.user.id);
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSaveWhatsapp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage(null);
-    setBusy(true);
-    try {
-      const { error } = await supabase.rpc('update_my_whatsapp', { p_username: whatsappUsername, p_phone: whatsappPhone });
-      if (error) throw error;
-      setMessage({ type: 'success', text: 'WhatsApp contact updated.' });
+      setEditing(false);
       if (session) fetchProfile(session.user.id);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
@@ -150,61 +132,76 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* Balance + wallet actions */}
         <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, marginBottom: 20 }}>
           <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase' }}>Balance</span>
           <div style={{ fontSize: 36, fontWeight: 900, margin: '4px 0 20px' }}>${profile.balance.toFixed(2)}</div>
 
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            type="number"
-            min="0.01"
-            step="0.01"
-            placeholder="Amount (USD)"
-            style={{ ...inputStyle, marginBottom: 12 }}
-          />
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={handleDeposit} disabled={busy} style={{ ...primaryButtonStyle, flex: 1, marginTop: 0 }}>
+            <Link href="/wallet/deposit" style={{ ...primaryButtonStyle, flex: 1, marginTop: 0, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
               Deposit
-            </button>
-            <button onClick={handleWithdraw} disabled={busy} style={{ ...secondaryButtonStyle, flex: 1 }}>
+            </Link>
+            <Link href="/wallet/withdraw" style={{ ...secondaryButtonStyle, flex: 1, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
               Withdraw
-            </button>
+            </Link>
           </div>
           <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10 }}>
-            Simulated wallet — no real payment gateway connected yet.
+            Choose M-Pesa, Crypto, or Google Pay on the next screen.
           </p>
         </div>
 
-        <form onSubmit={handleSaveProfile} style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, marginBottom: 20 }}>
-          <h3 style={{ marginTop: 0, textTransform: 'uppercase', fontSize: 14 }}>Account settings</h3>
-          <label style={labelStyle}>Username</label>
-          <input required value={username} onChange={(e) => setUsername(e.target.value)} style={inputStyle} />
-          <label style={labelStyle}>Gender</label>
-          <select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}>
-            <option value="">Prefer not to say</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          <button type="submit" disabled={busy} style={primaryButtonStyle}>
-            Save changes
-          </button>
-        </form>
+        {/* Profile details — view mode by default, edit mode on tap */}
+        <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: editing ? 18 : 4 }}>
+            <h3 style={{ margin: 0, textTransform: 'uppercase', fontSize: 14 }}>Account Details</h3>
+            {!editing && (
+              <button onClick={startEditing} style={editButtonStyle}>
+                ✏️ Edit
+              </button>
+            )}
+          </div>
 
-        <form onSubmit={handleSaveWhatsapp} style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, marginBottom: 20 }}>
-          <h3 style={{ marginTop: 0, textTransform: 'uppercase', fontSize: 14 }}>💬 Connect WhatsApp</h3>
-          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
-            Shown to your match opponent once you both join a duel, and to your buyer/seller during an account transfer.
-          </p>
-          <label style={labelStyle}>WhatsApp username</label>
-          <input value={whatsappUsername} onChange={(e) => setWhatsappUsername(e.target.value)} style={inputStyle} placeholder="Optional display name" />
-          <label style={labelStyle}>WhatsApp phone number</label>
-          <input value={whatsappPhone} onChange={(e) => setWhatsappPhone(e.target.value)} style={inputStyle} placeholder="+1 555 123 4567" />
-          <button type="submit" disabled={busy} style={primaryButtonStyle}>
-            Save WhatsApp contact
-          </button>
-        </form>
+          {!editing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <ViewRow label="Username" value={profile.username} />
+              <ViewRow label="Gender" value={profile.gender ? capitalize(profile.gender) : null} />
+              <ViewRow label="WhatsApp Username" value={profile.whatsapp_username} />
+              <ViewRow label="WhatsApp Phone" value={profile.whatsapp_phone} />
+              <ViewRow label="Discord Username" value={profile.discord_username} />
+            </div>
+          ) : (
+            <form onSubmit={handleSave}>
+              <label style={labelStyle}>Username</label>
+              <input required value={username} onChange={(e) => setUsername(e.target.value)} style={inputStyle} />
+
+              <label style={labelStyle}>Gender</label>
+              <select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}>
+                <option value="">Prefer not to say</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+
+              <label style={labelStyle}>WhatsApp Username <span style={optionalTag}>optional</span></label>
+              <input value={whatsappUsername} onChange={(e) => setWhatsappUsername(e.target.value)} style={inputStyle} placeholder="Display name" />
+
+              <label style={labelStyle}>WhatsApp Phone <span style={optionalTag}>optional</span></label>
+              <input value={whatsappPhone} onChange={(e) => setWhatsappPhone(e.target.value)} style={inputStyle} placeholder="+254 7XX XXX XXX" />
+
+              <label style={labelStyle}>Discord Username <span style={optionalTag}>optional</span></label>
+              <input value={discordUsername} onChange={(e) => setDiscordUsername(e.target.value)} style={inputStyle} placeholder="yourname" />
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                <button type="submit" disabled={busy} style={{ ...primaryButtonStyle, flex: 1, marginTop: 0 }}>
+                  {busy ? 'Saving…' : 'Save'}
+                </button>
+                <button type="button" onClick={cancelEditing} disabled={busy} style={{ ...secondaryButtonStyle, flex: 1 }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
 
         <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24 }}>
           <h3 style={{ marginTop: 0, textTransform: 'uppercase', fontSize: 14 }}>Recent activity</h3>
@@ -228,6 +225,21 @@ export default function ProfilePage() {
   );
 }
 
+function ViewRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--panel-border)' }}>
+      <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase' }}>{label}</span>
+      <span style={{ fontSize: 14, fontWeight: value ? 700 : 400, color: value ? '#fff' : 'var(--muted)' }}>
+        {value || 'Not set'}
+      </span>
+    </div>
+  );
+}
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: 12,
@@ -236,6 +248,14 @@ const labelStyle: React.CSSProperties = {
   marginTop: 14,
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
+};
+
+const optionalTag: React.CSSProperties = {
+  color: 'var(--muted)',
+  fontSize: 10,
+  textTransform: 'none',
+  letterSpacing: 'normal',
+  fontWeight: 400,
 };
 
 const inputStyle: React.CSSProperties = {
@@ -271,5 +291,17 @@ const secondaryButtonStyle: React.CSSProperties = {
   cursor: 'pointer',
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
+  borderRadius: 4,
+};
+
+const editButtonStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid var(--panel-border)',
+  color: '#fff',
+  padding: '6px 14px',
+  fontWeight: 700,
+  fontSize: 12,
+  cursor: 'pointer',
+  textTransform: 'uppercase',
   borderRadius: 4,
 };

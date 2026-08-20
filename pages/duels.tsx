@@ -85,7 +85,7 @@ export default function DuelsPage() {
         </div>
 
         <Link
-          href="/duels/create"
+          href="/duel/create"
           style={{
             background: 'var(--red)',
             color: '#fff',
