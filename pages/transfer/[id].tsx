@@ -310,7 +310,7 @@ export default function TransferChatPage() {
             </p>
             <p style={{ fontSize: 13, marginBottom: 4 }}>Username: <strong>{otherParty.username || '—'}</strong></p>
             {otherParty.whatsapp_phone || otherParty.whatsapp_username ? (
-              
+              <a
                 href={`https://wa.me/${(otherParty.whatsapp_phone || '').replace(/[^0-9]/g, '')}`}
                 target="_blank"
                 rel="noreferrer"

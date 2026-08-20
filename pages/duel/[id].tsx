@@ -196,7 +196,7 @@ export default function DuelChatPage() {
             <p style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 8 }}>Opponent contact</p>
             <p style={{ fontSize: 13, marginBottom: 4 }}>Username: <strong>{opponent.username || '—'}</strong></p>
             {opponent.whatsapp_phone || opponent.whatsapp_username ? (
-              
+              <a
                 href={`https://wa.me/${(opponent.whatsapp_phone || '').replace(/[^0-9]/g, '')}`}
                 target="_blank"
                 rel="noreferrer"
