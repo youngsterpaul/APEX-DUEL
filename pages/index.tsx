@@ -95,7 +95,7 @@ export default function Home() {
         {/* Mobile-ready 2-column grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {loading ? (
-            <SkeletonGrid count={GAMES_PAGE_SIZE} height={200} minWidth={140} />
+            <SkeletonGrid count={GAMES_PAGE_SIZE} height={200} columns="repeat(2, 1fr)" gap={12} />
           ) : games.length === 0 ? (
             <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0', gridColumn: 'span 2', textAlign: 'center' }}>No games found.</div>
           ) : (
