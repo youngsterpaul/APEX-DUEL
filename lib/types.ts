@@ -184,6 +184,7 @@ export interface LeagueMatch {
   status: 'open' | 'pending' | 'completed' | 'disputed';
   created_at: string;
 }
+
 export type TransferStatus = 'in_progress' | 'disputed' | 'completed' | 'cancelled';
 export type TransferDisputeType = 'mismatch' | 'cheated' | 'wrong_account' | 'failed_transfer';
 
@@ -194,6 +195,7 @@ export interface Transfer {
   seller_id: string;
   price: number;
   status: TransferStatus;
+  deadline_at: string | null;
 
   buyer_confirmed: boolean;
   buyer_confirmed_at: string | null;
