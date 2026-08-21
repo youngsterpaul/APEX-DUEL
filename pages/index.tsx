@@ -95,9 +95,9 @@ export default function Home() {
         {/* Mobile-ready 2-column grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {loading ? (
-            <SkeletonGrid count={GAMES_PAGE_SIZE} height={180} minWidth={140} />
+            <SkeletonGrid count={GAMES_PAGE_SIZE} height={200} minWidth={140} />
           ) : games.length === 0 ? (
-            <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0', gridColumn: 'span 2' }}>No games found.</div>
+            <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0', gridColumn: 'span 2', textAlign: 'center' }}>No games found.</div>
           ) : (
             games.slice((gamesPage - 1) * GAMES_PAGE_SIZE, gamesPage * GAMES_PAGE_SIZE).map((g) => (
               <Link
@@ -105,37 +105,42 @@ export default function Home() {
                 href={`/games/${g.id}`}
                 style={{
                   position: 'relative',
-                  minHeight: 180,
+                  minHeight: 200,
                   borderRadius: 8,
                   overflow: 'hidden',
                   border: '1px solid var(--panel-border)',
                   backgroundImage: g.image_url
-                    ? `linear-gradient(180deg, rgba(10,11,20,0.2), rgba(10,11,20,0.92)), url(${g.image_url})`
-                    : 'linear-gradient(135deg, rgba(255,59,92,0.25), rgba(41,231,205,0.15))',
+                    ? `linear-gradient(180deg, rgba(10,11,20,0.4), rgba(10,11,20,0.85)), url(${g.image_url})`
+                    : 'linear-gradient(135deg, rgba(255,59,92,0.35), rgba(41,231,205,0.25))',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   display: 'flex',
                   flexDirection: 'column',
-                  justifyContent: 'flex-end',
-                  padding: 12,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  padding: 14,
                   textDecoration: 'none',
                   boxSizing: 'border-box'
                 }}
               >
-                <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
                   {g.category}
                 </span>
-                <h4 style={{ margin: '4px 0 6px', fontSize: 15, color: '#fff', fontWeight: 700 }}>
+                
+                <h4 style={{ margin: '4px 0 8px', fontSize: 20, color: '#fff', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.1 }}>
                   {g.title}
                 </h4>
+                
                 <p 
                   style={{ 
-                    fontSize: 12, 
-                    color: 'rgba(255,255,255,0.8)', 
+                    fontSize: 13, 
+                    color: 'rgba(255,255,255,0.9)', 
                     margin: 0, 
                     lineHeight: 1.3,
+                    fontWeight: 500,
                     display: '-webkit-box',
-                    WebkitLineClamp: 2,
+                    WebkitLineClamp: 3,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden'
                   }}
