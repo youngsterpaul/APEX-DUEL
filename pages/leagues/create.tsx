@@ -2,6 +2,7 @@ import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import { uploadEventImage } from '../../lib/storage';
 
 interface Game {
   id: string;
@@ -23,6 +24,8 @@ export default function CreateLeague() {
   const [roundsPerOpponent, setRoundsPerOpponent] = useState<'1' | '2'>('1');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -78,23 +81,36 @@ export default function CreateLeague() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase.rpc('create_league', {
-      p_game_id: gameId,
-      p_name: name,
-      p_entry_fee: fee,
-      p_max_players: parseInt(maxPlayers, 10) || 30,
-      p_rounds_per_opponent: parseInt(roundsPerOpponent, 10),
-      p_starts_at: startsIso,
-      p_ends_at: endsIso,
-    });
-    setLoading(false);
+    try {
+      let imageUrl: string | null = null;
+      if (photo) {
+        imageUrl = await uploadEventImage('league', session.user.id, photo);
+      }
 
-    if (error) {
-      setMessage({ type: 'error', text: error.message });
-      return;
+      const { data, error } = await supabase.rpc('create_league', {
+        p_game_id: gameId,
+        p_name: name,
+        p_entry_fee: fee,
+        p_max_players: parseInt(maxPlayers, 10) || 30,
+        p_rounds_per_opponent: parseInt(roundsPerOpponent, 10),
+        p_starts_at: startsIso,
+        p_ends_at: endsIso,
+        p_image_url: imageUrl,
+      });
+
+      if (error) throw error;
+      setCreatedCode(data?.share_code ?? null);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Failed to create league.' });
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setCreatedCode(data?.share_code ?? null);
+  const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setPhoto(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
   };
 
   if (createdCode) {
@@ -215,6 +231,21 @@ export default function CreateLeague() {
             <input type="datetime-local" required value={endsAt} onChange={(e) => setEndsAt(e.target.value)} style={inputStyle} />
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
               Anyone who never reported a pending match forfeits it to their opponent at this time.
+            </p>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Background photo (optional)</label>
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onPhotoChange} style={inputStyle} />
+            {photoPreview && (
+              <img
+                src={photoPreview}
+                alt="Preview"
+                style={{ marginTop: 10, width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--panel-border)' }}
+              />
+            )}
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              Shown as the background on this league's page.
             </p>
           </div>
 

@@ -2,6 +2,7 @@ import Head from 'next/head';
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import { uploadEventImage } from '../../lib/storage';
 
 export default function CreateDuel() {
   const router = useRouter();
@@ -9,13 +10,30 @@ export default function CreateDuel() {
   const [freeToJoin, setFreeToJoin] = useState(true);
   const [entryFee, setEntryFee] = useState('5');
   const [scheduledAt, setScheduledAt] = useState('');
+  const [endsAt, setEndsAt] = useState('');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
 
+  const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setPhoto(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      setMessage({ type: 'error', text: 'You must be signed in to create a match.' });
+      return;
+    }
 
     if (!game.trim()) {
       setMessage({ type: 'error', text: 'Enter which game this match is for.' });
@@ -33,20 +51,34 @@ export default function CreateDuel() {
       setMessage({ type: 'error', text: 'Start time must be in the future.' });
       return;
     }
-
-    setLoading(true);
-    const { data, error } = await supabase.rpc('create_duel', {
-      p_game: game.trim(),
-      p_entry_fee: fee,
-      p_scheduled_at: scheduledIso,
-    });
-    setLoading(false);
-
-    if (error) {
-      setMessage({ type: 'error', text: error.message });
+    const endsIso = endsAt ? new Date(endsAt).toISOString() : null;
+    if (scheduledIso && endsIso && new Date(endsIso).getTime() <= new Date(scheduledIso).getTime()) {
+      setMessage({ type: 'error', text: 'End time must be after the start time.' });
       return;
     }
-    setCreatedCode(data.share_code);
+
+    setLoading(true);
+    try {
+      let imageUrl: string | null = null;
+      if (photo) {
+        imageUrl = await uploadEventImage('duel', session.user.id, photo);
+      }
+
+      const { data, error } = await supabase.rpc('create_duel', {
+        p_game: game.trim(),
+        p_entry_fee: fee,
+        p_scheduled_at: scheduledIso,
+        p_image_url: imageUrl,
+        p_ends_at: endsIso,
+      });
+
+      if (error) throw error;
+      setCreatedCode(data.share_code);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Failed to create match.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (createdCode) {
@@ -98,6 +130,29 @@ export default function CreateDuel() {
             <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} style={inputStyle} />
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
               If set, no one can join this match after this time passes.
+            </p>
+          </div>
+
+          <div>
+            <label style={labelStyle}>End time (optional)</label>
+            <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} style={inputStyle} />
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              When the match should be wrapped up by. Shown as a countdown on the match page.
+            </p>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Background photo (optional)</label>
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onPhotoChange} style={inputStyle} />
+            {photoPreview && (
+              <img
+                src={photoPreview}
+                alt="Preview"
+                style={{ marginTop: 10, width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--panel-border)' }}
+              />
+            )}
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              Shown as the background on this match's page.
             </p>
           </div>
 

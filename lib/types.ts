@@ -78,6 +78,8 @@ export interface Duel {
   winner_id: string | null;
   entry_fee: number;
   scheduled_at: string | null;
+  ends_at: string | null;
+  image_url: string | null;
   share_code: string;
   created_at: string;
   proposed_winner_id: string | null;
@@ -108,6 +110,7 @@ export interface Tournament {
   current_stage: number;
   starts_at: string | null;
   ends_at: string | null;
+  image_url: string | null;
   share_code: string;
   created_at: string;
   game_title?: string;
@@ -159,6 +162,7 @@ export interface League {
   rounds_per_opponent?: number | null;
   starts_at: string | null;
   ends_at: string | null;
+  image_url: string | null;
   share_code: string;
   created_at: string;
   game_title?: string;

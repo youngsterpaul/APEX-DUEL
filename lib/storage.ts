@@ -34,6 +34,22 @@ export async function uploadListingPhoto(sellerId: string, file: File): Promise<
   return data.publicUrl;
 }
 
+const EVENT_BUCKET = 'event-images';
+
+/** Uploads a background photo for a duel, league, or tournament. Returns a public URL. */
+export async function uploadEventImage(kind: 'duel' | 'league' | 'tournament', ownerId: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${kind}/${ownerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(EVENT_BUCKET)
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from(EVENT_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 const EVIDENCE_BUCKET = 'transfer-evidence';
 
 /** Uploads a piece of dispute evidence (screenshot, proof of ownership, etc). Bucket is private — only signed-in users can read/write. */

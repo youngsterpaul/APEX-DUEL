@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { formatCountdown } from '../../lib/countdown';
 
 interface TournamentRow {
   id: string;
@@ -16,6 +17,7 @@ interface TournamentRow {
   status: string;
   starts_at: string | null;
   ends_at: string | null;
+  image_url: string | null;
   share_code: string;
 }
 
@@ -49,6 +51,8 @@ export default function TournamentDetailPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const [now, setNow] = useState(() => Date.now());
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
   }, []);
@@ -56,6 +60,11 @@ export default function TournamentDetailPage() {
   useEffect(() => {
     if (typeof id === 'string') fetchAll(id);
   }, [id]);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const fetchAll = async (tournamentId: string) => {
     setLoading(true);
@@ -131,12 +140,53 @@ export default function TournamentDetailPage() {
           ← Back to Tournaments
         </Link>
 
-        <div style={{ marginTop: 16, marginBottom: 8 }}>
+        <div
+          style={{
+            marginTop: 16,
+            marginBottom: 8,
+            borderRadius: 8,
+            overflow: 'hidden',
+            padding: tournament.image_url ? 20 : 0,
+            backgroundImage: tournament.image_url
+              ? `linear-gradient(180deg, rgba(10,11,20,0.55), rgba(10,11,20,0.92)), url(${tournament.image_url})`
+              : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
           <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase' }}>{gameTitle}</span>
           <h1 className="display" style={{ fontSize: 'clamp(24px, 4vw, 34px)', textTransform: 'uppercase', margin: '4px 0' }}>
             {tournament.name}
           </h1>
         </div>
+
+        {/* Countdown to start / end */}
+        {(tournament.starts_at || tournament.ends_at) && (() => {
+          const target = started ? tournament.ends_at : tournament.starts_at;
+          if (!target) return null;
+          const msLeft = new Date(target).getTime() - now;
+          const expired = msLeft <= 0;
+          const days = Math.floor(Math.max(0, msLeft) / 86400000);
+          return (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: '10px 14px',
+                background: expired ? 'rgba(255,68,68,0.1)' : 'rgba(41,231,205,0.08)',
+                border: `1px solid ${expired ? '#ff4444' : 'var(--panel-border)'}`,
+                borderRadius: 6,
+                fontSize: 12,
+                color: expired ? '#ff4444' : 'var(--muted)',
+              }}
+            >
+              ⏱ {expired
+                ? started
+                  ? 'Tournament end time has passed.'
+                  : 'Tournament start time has passed.'
+                : `${started ? 'Ends' : 'Starts'} in ${days} day${days === 1 ? '' : 's'} · ${formatCountdown(msLeft)} remaining`}
+            </div>
+          );
+        })()}
 
         {message && (
           <div

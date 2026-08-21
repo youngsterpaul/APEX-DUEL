@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { Duel, DuelMessage } from '../../lib/types';
+import { formatCountdown } from '../../lib/countdown';
 
 interface Profile {
   id: string;
@@ -33,10 +34,17 @@ export default function DuelChatPage() {
   const [busy, setBusy] = useState(false);
   const [proposedWinnerChoice, setProposedWinnerChoice] = useState<string>('');
 
+  const [now, setNow] = useState(() => Date.now());
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
   }, []);
 
   const fetchAll = useCallback(async () => {
@@ -174,21 +182,60 @@ export default function DuelChatPage() {
       <section style={{ maxWidth: 820, margin: '0 auto', padding: '32px 16px 100px' }}>
         <Link href="/duels" style={{ color: 'var(--muted)', fontSize: 13, textDecoration: 'none' }}>← My Matches</Link>
 
-        <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16, marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <span style={{ fontSize: 11, color: 'var(--red)', textTransform: 'uppercase', fontWeight: 700 }}>1v1 Match</span>
-            <h1 style={{ fontSize: 18, fontWeight: 800, margin: '4px 0 0' }}>{duel.game}</h1>
-            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-              {opponent ? <>vs <strong style={{ color: '#fff' }}>{opponent.username || 'opponent'}</strong></> : 'Waiting for an opponent to join…'}
-            </span>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            {duel.entry_fee > 0 && <div style={{ fontSize: 18, fontWeight: 900 }}>${duel.entry_fee} entry</div>}
-            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', padding: '3px 9px', borderRadius: 12, background: badge.bg, color: badge.color, border: `1px solid ${badge.color}` }}>
-              {badge.label}
-            </span>
+        <div
+          style={{
+            border: '1px solid var(--panel-border)',
+            borderRadius: 8,
+            marginTop: 16,
+            overflow: 'hidden',
+            backgroundImage: duel.image_url
+              ? `linear-gradient(180deg, rgba(10,11,20,0.55), rgba(10,11,20,0.9)), url(${duel.image_url})`
+              : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            background: duel.image_url ? undefined : '#131627',
+          }}
+        >
+          <div style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <span style={{ fontSize: 11, color: 'var(--red)', textTransform: 'uppercase', fontWeight: 700 }}>1v1 Match</span>
+              <h1 style={{ fontSize: 18, fontWeight: 800, margin: '4px 0 0' }}>{duel.game}</h1>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                {opponent ? <>vs <strong style={{ color: '#fff' }}>{opponent.username || 'opponent'}</strong></> : 'Waiting for an opponent to join…'}
+              </span>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              {duel.entry_fee > 0 && <div style={{ fontSize: 18, fontWeight: 900 }}>${duel.entry_fee} entry</div>}
+              <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', padding: '3px 9px', borderRadius: 12, background: badge.bg, color: badge.color, border: `1px solid ${badge.color}` }}>
+                {badge.label}
+              </span>
+            </div>
           </div>
         </div>
+
+        {/* Countdown to the match's end time */}
+        {duel.ends_at && (() => {
+          const msLeft = new Date(duel.ends_at).getTime() - now;
+          const expired = msLeft <= 0;
+          const days = Math.floor(Math.max(0, msLeft) / 86400000);
+          return (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                background: expired ? 'rgba(255,68,68,0.1)' : 'rgba(41,231,205,0.08)',
+                border: `1px solid ${expired ? '#ff4444' : 'var(--panel-border)'}`,
+                borderRadius: 6,
+                fontSize: 12,
+                color: expired ? '#ff4444' : 'var(--muted)',
+              }}
+            >
+              ⏱ {expired
+                ? 'Match end time has passed.'
+                : `${days} day${days === 1 ? '' : 's'} left · ${formatCountdown(msLeft)} remaining`}
+            </div>
+          );
+        })()}
 
         {/* Contact info reveal — once the opponent has joined */}
         {chatUnlocked && opponent && (
