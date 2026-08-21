@@ -29,8 +29,6 @@ export default function Header() {
   const [cartOpen, setCartOpen] = useState(false);
   const { count } = useCart();
 
-  const isHomePage = router.pathname === '/';
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -193,46 +191,48 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Sub-Header Navigation Bar (Index Page Only) */}
-        {isHomePage && (
-          <div
-            className="mobile-subnav"
-            style={{
-              borderTop: '1px solid rgba(255,255,255,0.08)',
-              background: '#0a0b14',
-              padding: '8px 12px',
-              overflowX: 'auto',
-              whiteSpace: 'nowrap',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              {navLinks.map((link) => (
+        {/* Mobile Sub-Header Navigation Bar (Appears on ALL pages automatically) */}
+        <div
+          className="mobile-subnav"
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            background: '#0a0b14',
+            padding: '8px 12px',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {navLinks.map((link) => {
+              const isActive = router.pathname === link.href;
+              return (
                 <Link
                   key={link.href}
                   href={link.href}
                   style={{
                     fontWeight: 700,
                     fontSize: 12,
-                    color: router.pathname === link.href ? 'var(--red)' : '#ccc',
+                    color: isActive ? 'var(--red)' : '#ccc',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     textDecoration: 'none',
-                    padding: '4px 8px',
+                    padding: '4px 10px',
                     borderRadius: 4,
-                    background: router.pathname === link.href ? 'rgba(255,59,92,0.12)' : 'transparent',
+                    background: isActive ? 'rgba(255,59,92,0.12)' : 'transparent',
+                    border: isActive ? '1px solid rgba(255,59,92,0.3)' : '1px solid transparent',
                     flexShrink: 0,
                   }}
                 >
                   {link.label}
                 </Link>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </header>
 
-      {/* CSS Rule for showing/hiding desktop vs mobile elements */}
+      {/* Responsive layout controls */}
       <style jsx global>{`
         .desktop-nav {
           display: none;
