@@ -47,9 +47,6 @@ export default function Home() {
         <h1 style={{ fontSize: 'clamp(24px, 5vw, 48px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 12, letterSpacing: '0.02em', lineHeight: 1.2 }}>
           Find Your Match, <span style={{ color: 'var(--red)' }}>Prove Your Gaming Skills</span> & Earn
         </h1>
-        <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.5, maxWidth: 700, margin: '0 auto' }}>
-          Explore game descriptions from our database, create or find challenges, buy and sell accounts securely, and join or host multiplayer competitions with escrow account transfers.
-        </p>
       </section>
 
       {/* THREE MAIN INTERACTIVE CARDS SECTION */}
