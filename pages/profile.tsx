@@ -166,8 +166,37 @@ export default function ProfilePage() {
               <ViewRow label="Username" value={profile.username} />
               <ViewRow label="Gender" value={profile.gender ? capitalize(profile.gender) : null} />
               <ViewRow label="WhatsApp Username" value={profile.whatsapp_username} />
-              <ViewRow label="WhatsApp Phone" value={profile.whatsapp_phone} />
-              <ViewRow label="Discord Username" value={profile.discord_username} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--panel-border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase' }}>WhatsApp Phone</span>
+                {profile.whatsapp_phone ? (
+                  <a
+                    href={`https://wa.me/${profile.whatsapp_phone.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 14, fontWeight: 700, color: '#25D366', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  >
+                    💬 {profile.whatsapp_phone}
+                  </a>
+                ) : (
+                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>Not set</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--panel-border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase' }}>Discord Username</span>
+                {profile.discord_username ? (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(profile.discord_username || '');
+                      setMessage({ type: 'success', text: 'Discord username copied to clipboard.' });
+                    }}
+                    style={{ background: 'transparent', border: 'none', fontSize: 14, fontWeight: 700, color: '#5865F2', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, padding: 0 }}
+                  >
+                    🎮 {profile.discord_username} <span style={{ fontSize: 11, color: 'var(--muted)' }}>(copy)</span>
+                  </button>
+                ) : (
+                  <span style={{ fontSize: 14, color: 'var(--muted)' }}>Not set</span>
+                )}
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSave}>

@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -88,7 +89,10 @@ export default function Withdraw() {
       </Head>
 
       <section style={{ maxWidth: 560, margin: '0 auto', padding: '48px 24px 80px' }}>
-        <h1 className="display" style={{ fontSize: 'clamp(26px, 4vw, 36px)', textTransform: 'uppercase', marginBottom: 8 }}>
+        <Link href="/profile" style={{ color: 'var(--muted)', fontSize: 13, textDecoration: 'none' }}>
+          ← Back to Profile
+        </Link>
+        <h1 className="display" style={{ fontSize: 'clamp(26px, 4vw, 36px)', textTransform: 'uppercase', margin: '16px 0 8px' }}>
           Withdraw Funds
         </h1>
         {balance !== null && (

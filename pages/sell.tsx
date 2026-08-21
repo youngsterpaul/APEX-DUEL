@@ -25,6 +25,7 @@ export default function SellAccountPage() {
   const [level, setLevel] = useState('');
   const [accountEmail, setAccountEmail] = useState('');
   const [price, setPrice] = useState('');
+  const [transferDeadlineHours, setTransferDeadlineHours] = useState('24');
   const [files, setFiles] = useState<File[]>([]);
   const [emailProofFile, setEmailProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -109,6 +110,7 @@ export default function SellAccountPage() {
           email_proof_photo: emailProofUrl,
           price: parseFloat(price),
           photos: photoUrls,
+          transfer_deadline_hours: parseInt(transferDeadlineHours, 10),
         })
         .select()
         .single();
@@ -192,6 +194,17 @@ export default function SellAccountPage() {
 
           <label style={labelStyle}>Amount the account is on sale for (USD)</label>
           <input required type="number" min="0.01" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} placeholder="49.99" />
+
+          <label style={labelStyle}>Transfer deadline (how long you commit to completing the handover once bought)</label>
+          <select value={transferDeadlineHours} onChange={(e) => setTransferDeadlineHours(e.target.value)} style={inputStyle}>
+            <option value="1">1 hour</option>
+            <option value="6">6 hours</option>
+            <option value="12">12 hours</option>
+            <option value="24">24 hours</option>
+          </select>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: -8, marginBottom: 16 }}>
+            If the buyer hasn't confirmed by this deadline, you'll be able to flag them as unresponsive.
+          </p>
 
           <label style={labelStyle}>Account photos (exactly {MAX_PHOTOS}, must be different images)</label>
           <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>

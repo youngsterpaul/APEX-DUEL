@@ -20,6 +20,7 @@ interface Profile {
   avatar_url?: string | null;
   whatsapp_username?: string | null;
   whatsapp_phone?: string | null;
+  discord_username?: string | null;
 }
 
 const DISPUTE_OPTIONS: { value: TransferDisputeType; label: string }[] = [
@@ -61,6 +62,8 @@ export default function TransferChatPage() {
   const [responseUsername, setResponseUsername] = useState('');
   const [responseFiles, setResponseFiles] = useState<File[]>([]);
 
+  const [now, setNow] = useState(() => Date.now());
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,7 +83,7 @@ export default function TransferChatPage() {
 
     const [{ data: listingData }, { data: profilesData }, { data: messagesData }] = await Promise.all([
       supabase.from('account_listings').select('id, in_game_username, price, game_id, photos').eq('id', transferData.listing_id).maybeSingle(),
-      supabase.from('profiles').select('id, username, avatar_url, whatsapp_username, whatsapp_phone').in('id', [transferData.buyer_id, transferData.seller_id]),
+      supabase.from('profiles').select('id, username, avatar_url, whatsapp_username, whatsapp_phone, discord_username').in('id', [transferData.buyer_id, transferData.seller_id]),
       supabase.from('transfer_messages').select('*').eq('transfer_id', id).order('created_at', { ascending: true }),
     ]);
 
@@ -107,6 +110,11 @@ export default function TransferChatPage() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages.length]);
+
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, []);
 
   const isBuyer = session && transfer && session.user.id === transfer.buyer_id;
   const isSeller = session && transfer && session.user.id === transfer.seller_id;
@@ -201,6 +209,23 @@ export default function TransferChatPage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleReportNoResponse = async () => {
+    if (typeof id !== 'string') return;
+    const ok = window.confirm(
+      'Report that the buyer never confirmed before the deadline? This sends the transfer to support for review.'
+    );
+    if (!ok) return;
+    setBusy(true);
+    setError(null);
+    const { error: reportError } = await supabase.rpc('seller_report_no_response', { p_transfer_id: id });
+    setBusy(false);
+    if (reportError) {
+      setError(reportError.message);
+      return;
+    }
+    fetchAll();
   };
 
   if (loading) {
@@ -302,25 +327,74 @@ export default function TransferChatPage() {
           </div>
         )}
 
-        {/* WhatsApp contact reveal — buyer and seller can see each other's contact info */}
+        {/* Transfer deadline countdown */}
+        {transfer.status === 'in_progress' && transfer.deadline_at && (() => {
+          const msLeft = new Date(transfer.deadline_at).getTime() - now;
+          const expired = msLeft <= 0;
+          return (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                background: expired ? 'rgba(255,68,68,0.1)' : 'rgba(41,231,205,0.08)',
+                border: `1px solid ${expired ? '#ff4444' : 'var(--panel-border)'}`,
+                borderRadius: 6,
+                fontSize: 12,
+                color: expired ? '#ff4444' : 'var(--muted)',
+              }}
+            >
+              ⏱ {expired ? 'Transfer deadline has passed.' : `Deadline in ${formatCountdown(msLeft)}`}
+              {isSeller && expired && !transfer.buyer_confirmed && (
+                <button
+                  onClick={handleReportNoResponse}
+                  disabled={busy}
+                  style={{
+                    marginLeft: 12,
+                    background: 'transparent',
+                    border: '1px solid #ff4444',
+                    color: '#ff4444',
+                    borderRadius: 4,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Report Buyer Unresponsive
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Contact reveal — buyer and seller can see each other's contact info */}
         {otherParty && (
           <div style={{ marginTop: 12, background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 14 }}>
             <p style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 8 }}>
               {isBuyer ? "Seller's" : "Buyer's"} contact
             </p>
-            <p style={{ fontSize: 13, marginBottom: 4 }}>Username: <strong>{otherParty.username || '—'}</strong></p>
-            {otherParty.whatsapp_phone || otherParty.whatsapp_username ? (
-              <a
-                href={`https://wa.me/${(otherParty.whatsapp_phone || '').replace(/[^0-9]/g, '')}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, color: '#25D366', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
-              >
-                💬 WhatsApp: {otherParty.whatsapp_username || otherParty.whatsapp_phone}
-              </a>
-            ) : (
-              <p style={{ fontSize: 12, color: 'var(--muted)' }}>They haven't connected WhatsApp yet — use the chat below.</p>
-            )}
+            <p style={{ fontSize: 13, marginBottom: 8 }}>Username: <strong>{otherParty.username || '—'}</strong></p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {(otherParty.whatsapp_phone || otherParty.whatsapp_username) && (
+                <a
+                  href={`https://wa.me/${(otherParty.whatsapp_phone || '').replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#25D366', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+                >
+                  💬 WhatsApp: {otherParty.whatsapp_username || otherParty.whatsapp_phone}
+                </a>
+              )}
+              {otherParty.discord_username && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#5865F2', fontSize: 13, fontWeight: 700 }}>
+                  🎮 Discord: {otherParty.discord_username}
+                </span>
+              )}
+              {!otherParty.whatsapp_phone && !otherParty.whatsapp_username && !otherParty.discord_username && (
+                <p style={{ fontSize: 12, color: 'var(--muted)' }}>They haven't connected WhatsApp or Discord yet — use the chat below.</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -502,9 +576,11 @@ export default function TransferChatPage() {
             <h3 style={{ fontSize: 15, fontWeight: 800, color: '#ff4444', marginBottom: 8 }}>⚠️ This transfer is under dispute</h3>
 
             <div style={{ marginBottom: 14 }}>
-              <p style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>Buyer's report</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                {transfer.dispute_raised_by === transfer.seller_id ? "Seller's report" : "Buyer's report"}
+              </p>
               <p style={{ fontSize: 13, marginBottom: 4 }}>
-                Reason: <strong>{DISPUTE_OPTIONS.find((o) => o.value === transfer.dispute_type)?.label}</strong>
+                Reason: <strong>{DISPUTE_OPTIONS.find((o) => o.value === transfer.dispute_type)?.label || 'Buyer unresponsive'}</strong>
               </p>
               <p style={{ fontSize: 13, color: '#d8dae0' }}>{transfer.dispute_reason}</p>
               {transfer.dispute_evidence_urls?.length > 0 && (
@@ -535,7 +611,7 @@ export default function TransferChatPage() {
                 )}
                 <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>Support is reviewing this dispute.</p>
               </div>
-            ) : isSeller ? (
+            ) : isSeller && transfer.dispute_raised_by !== transfer.seller_id ? (
               showResponseForm ? (
                 <form onSubmit={handleSubmitResponse} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div>
@@ -570,6 +646,8 @@ export default function TransferChatPage() {
                   Respond to This Dispute
                 </button>
               )
+            ) : isSeller ? (
+              <p style={{ fontSize: 13, color: 'var(--muted)' }}>Support is reviewing your report.</p>
             ) : (
               <p style={{ fontSize: 13, color: 'var(--muted)' }}>Waiting for the seller to respond. Support will review once they do.</p>
             )}
@@ -594,6 +672,16 @@ export default function TransferChatPage() {
       </section>
     </div>
   );
+}
+
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
 }
 
 function getStatusInfo(status: Transfer['status']) {
