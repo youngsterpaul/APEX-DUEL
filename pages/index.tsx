@@ -116,7 +116,7 @@ export default function Home() {
                   backgroundPosition: 'center',
                   display: 'flex',
                   flexDirection: 'column',
-                  justify: 'flex-end',
+                  justifyContent: 'flex-end',
                   padding: 12,
                   textDecoration: 'none',
                   boxSizing: 'border-box'
