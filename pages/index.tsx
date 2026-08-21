@@ -44,10 +44,10 @@ export default function Home() {
 
       {/* Hero Section */}
       <section style={{ padding: '30px 16px', textAlign: 'center', maxWidth: 900, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 'clamp(24px, 5vw, 44px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 12, letterSpacing: '0.02em', lineHeight: 1.2 }}>
+        <h1 style={{ fontSize: 'clamp(24px, 5vw, 48px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 12, letterSpacing: '0.02em', lineHeight: 1.2 }}>
           Find Your Match, <span style={{ color: 'var(--red)' }}>Prove Your Gaming Skills</span> & Earn
         </h1>
-        <p style={{ color: 'var(--muted)', fontSize: 'clamp(13px, 3.5vw, 15px)', lineHeight: 1.5, maxWidth: 700, margin: '0 auto' }}>
+        <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.5, maxWidth: 700, margin: '0 auto' }}>
           Explore game descriptions from our database, create or find challenges, buy and sell accounts securely, and join or host multiplayer competitions with escrow account transfers.
         </p>
       </section>
@@ -70,7 +70,7 @@ export default function Home() {
           <Link href="/markets" style={categoryCardStyle('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
               <span style={{ fontSize: 20, marginBottom: 4 }}>🛒</span>
-              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>2. Sell or Buy Account</h4>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 16, fontWeight: 800 }}>2. Sell or Buy Account</h4>
               <p style={{ fontSize: 11, color: 'var(--muted)', margin: '4px 0 0' }}>Secure account marketplace protected by escrow</p>
             </div>
           </Link>
@@ -78,7 +78,7 @@ export default function Home() {
           <Link href="/tournaments" style={categoryCardStyle('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80')}>
             <div style={categoryOverlayStyle}>
               <span style={{ fontSize: 20, marginBottom: 4 }}>🏆</span>
-              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 16, fontWeight: 800 }}>3. Join Competition or Create a Competition</h4>
+              <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: 18, fontWeight: 800 }}>3. Join Competition</h4>
               <p style={{ fontSize: 11, color: 'var(--muted)', margin: '4px 0 0' }}>Participate in or host multi-player tournaments</p>
             </div>
           </Link>
@@ -86,26 +86,24 @@ export default function Home() {
         </div>
       </section>
 
-      {/* GAMES DATABASE DESCRIPTIONS SECTION (Strict 2-Column Grid) */}
+      {/* GAMES DATABASE DESCRIPTIONS SECTION */}
       <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 16px 60px' }}>
         <h3 style={{ fontSize: 13, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, fontWeight: 700 }}>
-          Supported Games & Descriptions
+          Supported Games
         </h3>
-
+        
+        {/* Mobile-ready 2-column grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {loading ? (
             <SkeletonGrid count={GAMES_PAGE_SIZE} height={180} minWidth={140} />
           ) : games.length === 0 ? (
-            <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0', gridColumn: 'span 2' }}>
-              No games found.
-            </div>
+            <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0', gridColumn: 'span 2' }}>No games found.</div>
           ) : (
             games.slice((gamesPage - 1) * GAMES_PAGE_SIZE, gamesPage * GAMES_PAGE_SIZE).map((g) => (
               <Link
                 key={g.id}
                 href={`/games/${g.id}`}
                 style={{
-                  textDecoration: 'none',
                   position: 'relative',
                   minHeight: 180,
                   borderRadius: 8,
@@ -120,28 +118,29 @@ export default function Home() {
                   flexDirection: 'column',
                   justify: 'flex-end',
                   padding: 12,
-                  boxSizing: 'border-box',
+                  textDecoration: 'none',
+                  boxSizing: 'border-box'
                 }}
               >
-                <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {g.category}
                 </span>
-                <h4 style={{ margin: '4px 0 6px', fontSize: 'clamp(14px, 3.5vw, 16px)', color: '#fff', fontWeight: 800, lineHeight: 1.2 }}>
+                <h4 style={{ margin: '4px 0 6px', fontSize: 15, color: '#fff', fontWeight: 700 }}>
                   {g.title}
                 </h4>
-                <p
-                  style={{
-                    fontSize: 11,
-                    color: 'rgba(255,255,255,0.8)',
-                    margin: 0,
+                <p 
+                  style={{ 
+                    fontSize: 12, 
+                    color: 'rgba(255,255,255,0.8)', 
+                    margin: 0, 
                     lineHeight: 1.3,
                     display: '-webkit-box',
-                    WebkitLineClamp: 3,
+                    WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
+                    overflow: 'hidden'
                   }}
                 >
-                  {g.description || 'Compete in organized matches, climb rankings, and win cash prizes through secure smart account transfer escrows.'}
+                  {g.description || 'Compete in organized matches, climb rankings, and win cash prizes.'}
                 </p>
               </Link>
             ))
@@ -149,7 +148,9 @@ export default function Home() {
         </div>
 
         {!loading && games.length > 0 && (
-          <Pagination page={gamesPage} totalPages={Math.max(1, Math.ceil(games.length / GAMES_PAGE_SIZE))} onChange={setGamesPage} />
+          <div style={{ marginTop: 20 }}>
+            <Pagination page={gamesPage} totalPages={Math.max(1, Math.ceil(games.length / GAMES_PAGE_SIZE))} onChange={setGamesPage} />
+          </div>
         )}
       </section>
     </div>
@@ -161,13 +162,13 @@ const categoryCardStyle = (bgImage: string): React.CSSProperties => ({
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   borderRadius: 8,
-  minHeight: 110,
+  height: 120,
   display: 'flex',
   alignItems: 'flex-end',
   textDecoration: 'none',
   overflow: 'hidden',
   border: '1px solid var(--panel-border)',
-  boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+  boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
 });
 
 const categoryOverlayStyle: React.CSSProperties = {
