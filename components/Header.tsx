@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useCart } from '../lib/cartContext';
@@ -21,11 +22,14 @@ const navLinks: NavLink[] = [
 ];
 
 export default function Header() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const { count } = useCart();
+
+  const isHomePage = router.pathname === '/';
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -52,7 +56,7 @@ export default function Header() {
       <header
         style={{
           borderBottom: '1px solid var(--panel-border)',
-          background: 'rgba(10,11,20,0.85)',
+          background: 'rgba(10,11,20,0.95)',
           backdropFilter: 'blur(8px)',
           position: 'sticky',
           top: 0,
@@ -67,16 +71,17 @@ export default function Header() {
             alignItems: 'center',
             justifyContent: 'space-between',
             height: 72,
-            padding: '0 24px',
+            padding: '0 16px',
             maxWidth: '100%',
           }}
         >
+          {/* Home Logo */}
           <Link href="/" className="display" style={{ fontSize: 22, fontWeight: 800, textDecoration: 'none', color: '#fff', letterSpacing: '0.02em' }}>
             APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="desktop-nav" style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
+          <nav className="desktop-nav" style={{ gap: 28, alignItems: 'center' }}>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -84,7 +89,7 @@ export default function Header() {
                 style={{
                   fontWeight: 600,
                   fontSize: 14,
-                  color: 'var(--muted)',
+                  color: router.pathname === link.href ? '#fff' : 'var(--muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
                   textDecoration: 'none',
@@ -95,7 +100,7 @@ export default function Header() {
             ))}
           </nav>
 
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {/* Cart */}
             <button
               onClick={() => setCartOpen(true)}
@@ -146,9 +151,9 @@ export default function Header() {
               style={{
                 background: 'var(--red)',
                 color: '#fff',
-                padding: '8px 18px',
+                padding: '8px 14px',
                 fontWeight: 700,
-                fontSize: 13,
+                fontSize: 12,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
                 textDecoration: 'none',
@@ -187,7 +192,64 @@ export default function Header() {
             </button>
           </div>
         </div>
+
+        {/* Mobile Sub-Header Navigation Bar (Index Page Only) */}
+        {isHomePage && (
+          <div
+            className="mobile-subnav"
+            style={{
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              background: '#0a0b14',
+              padding: '8px 12px',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 12,
+                    color: router.pathname === link.href ? 'var(--red)' : '#ccc',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    textDecoration: 'none',
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    background: router.pathname === link.href ? 'rgba(255,59,92,0.12)' : 'transparent',
+                    flexShrink: 0,
+                  }}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
+
+      {/* CSS Rule for showing/hiding desktop vs mobile elements */}
+      <style jsx global>{`
+        .desktop-nav {
+          display: none;
+        }
+        .mobile-subnav {
+          display: block;
+        }
+
+        @media (min-width: 900px) {
+          .desktop-nav {
+            display: flex !important;
+          }
+          .mobile-subnav {
+            display: none !important;
+          }
+        }
+      `}</style>
 
       {/* Render modular Popup Menu */}
       <PopupMenu
