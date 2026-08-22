@@ -18,6 +18,7 @@ interface DuelRow {
   entry_fee: number;
   scheduled_at: string | null;
   share_code: string;
+  player1_id: string;
 }
 
 interface TournamentRow {
@@ -27,6 +28,7 @@ interface TournamentRow {
   entry_fee: number;
   prize_pool: number;
   starts_at: string | null;
+  max_players?: number | null;
 }
 
 interface LeagueRow {
@@ -42,12 +44,21 @@ export default function GameChallengesPage() {
   const router = useRouter();
   const { id } = router.query;
 
+  const [session, setSession] = useState<any>(null);
   const [game, setGame] = useState<Game | null>(null);
   const [duels, setDuels] = useState<DuelRow[]>([]);
   const [tournaments, setTournaments] = useState<TournamentRow[]>([]);
   const [leagues, setLeagues] = useState<LeagueRow[]>([]);
+  const [joinedTournamentIds, setJoinedTournamentIds] = useState<Set<string>>(new Set());
+  const [joinedLeagueIds, setJoinedLeagueIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+  }, []);
 
   useEffect(() => {
     if (typeof id === 'string') fetchAll(id);
@@ -63,11 +74,15 @@ export default function GameChallengesPage() {
     }
     setGame(gameData);
 
+    const {
+      data: { session: sess },
+    } = await supabase.auth.getSession();
+
     // Duels store the game as free text (not a game_id foreign key), so match by title.
     const [{ data: duelData }, { data: tournamentData }, { data: leagueData }] = await Promise.all([
       supabase
         .from('duels')
-        .select('id, game, status, entry_fee, scheduled_at, share_code')
+        .select('id, game, status, entry_fee, scheduled_at, share_code, player1_id')
         .ilike('game', gameData.title)
         .is('player2_id', null)
         .order('created_at', { ascending: false }),
@@ -86,7 +101,71 @@ export default function GameChallengesPage() {
     setDuels(duelData || []);
     setTournaments(tournamentData || []);
     setLeagues(leagueData || []);
+
+    if (sess) {
+      const tIds = (tournamentData || []).map((t) => t.id);
+      const lIds = (leagueData || []).map((l) => l.id);
+      const [{ data: myTournaments }, { data: myLeagues }] = await Promise.all([
+        tIds.length > 0
+          ? supabase.from('tournament_participants').select('tournament_id').eq('profile_id', sess.user.id).in('tournament_id', tIds)
+          : Promise.resolve({ data: [] as any[] }),
+        lIds.length > 0
+          ? supabase.from('league_participants').select('league_id').eq('profile_id', sess.user.id).in('league_id', lIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      setJoinedTournamentIds(new Set((myTournaments || []).map((r: any) => r.tournament_id)));
+      setJoinedLeagueIds(new Set((myLeagues || []).map((r: any) => r.league_id)));
+    } else {
+      setJoinedTournamentIds(new Set());
+      setJoinedLeagueIds(new Set());
+    }
+
     setLoading(false);
+  };
+
+  const requireLogin = () => {
+    setMessage({ type: 'error', text: 'Please sign in to join.' });
+  };
+
+  const handleJoinDuel = async (duelId: string) => {
+    if (!session) return requireLogin();
+    setBusyId(duelId);
+    setMessage(null);
+    const { error } = await supabase.rpc('join_duel', { p_duel_id: duelId });
+    setBusyId(null);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    router.push(`/duel/${duelId}`);
+  };
+
+  const handleJoinTournament = async (tournamentId: string) => {
+    if (!session) return requireLogin();
+    setBusyId(tournamentId);
+    setMessage(null);
+    const { error } = await supabase.rpc('register_for_tournament', { p_tournament_id: tournamentId });
+    setBusyId(null);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    setMessage({ type: 'success', text: "You're registered!" });
+    if (typeof id === 'string') fetchAll(id);
+  };
+
+  const handleJoinLeague = async (leagueId: string) => {
+    if (!session) return requireLogin();
+    setBusyId(leagueId);
+    setMessage(null);
+    const { error } = await supabase.rpc('join_league', { p_league_id: leagueId });
+    setBusyId(null);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    setMessage({ type: 'success', text: "You're in!" });
+    if (typeof id === 'string') fetchAll(id);
   };
 
   if (loading) {
@@ -157,21 +236,51 @@ export default function GameChallengesPage() {
       </section>
 
       <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 20px 80px', display: 'flex', flexDirection: 'column', gap: 36 }}>
+        {message && (
+          <div
+            style={{
+              padding: 10,
+              borderRadius: 4,
+              fontSize: 13,
+              textAlign: 'center',
+              background: message.type === 'success' ? 'rgba(0,255,100,0.1)' : 'rgba(255,0,0,0.1)',
+              color: message.type === 'success' ? '#00ff64' : '#ff4444',
+              border: `1px solid ${message.type === 'success' ? '#00ff64' : '#ff4444'}`,
+            }}
+          >
+            {message.text}
+          </div>
+        )}
+
         <GameSection title="1v1 Duels">
           {duels.length === 0 ? (
             <EmptyRow text={`No open 1v1 matches for ${game.title} yet.`} />
           ) : (
-            duels.map((d) => (
-              <Link key={d.id} href={`/duel/${d.id}`} style={rowLinkStyle}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{d.game}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                    {d.scheduled_at ? new Date(d.scheduled_at).toLocaleString() : 'Start time TBD'} · Code {d.share_code}
+            duels.map((d) => {
+              const isOwn = session && d.player1_id === session.user.id;
+              return (
+                <div key={d.id} style={rowStyle}>
+                  <Link href={`/duel/${d.id}`} style={rowInfoLinkStyle}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{d.game}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      {d.scheduled_at ? new Date(d.scheduled_at).toLocaleString() : 'Start time TBD'} · Code {d.share_code} · ${d.entry_fee} entry
+                    </div>
+                  </Link>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <Link href={`/duel/${d.id}`} style={viewBtnStyle}>
+                      View
+                    </Link>
+                    {isOwn ? (
+                      <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Your Match</span>
+                    ) : (
+                      <button onClick={() => handleJoinDuel(d.id)} disabled={busyId === d.id} style={joinBtnStyle}>
+                        {busyId === d.id ? '…' : 'Join'}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>${d.entry_fee}</div>
-              </Link>
-            ))
+              );
+            })
           )}
         </GameSection>
 
@@ -179,20 +288,34 @@ export default function GameChallengesPage() {
           {tournaments.length === 0 ? (
             <EmptyRow text={`No tournaments for ${game.title} yet.`} />
           ) : (
-            tournaments.map((t) => (
-              <Link key={t.id} href={`/tournaments/${t.id}`} style={rowLinkStyle}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'capitalize' }}>
-                    {t.status} · {t.starts_at ? new Date(t.starts_at).toLocaleString() : 'Start time TBD'}
+            tournaments.map((t) => {
+              const joined = joinedTournamentIds.has(t.id);
+              const canJoin = t.status === 'registration' && !joined;
+              return (
+                <div key={t.id} style={rowStyle}>
+                  <Link href={`/tournaments/${t.id}`} style={rowInfoLinkStyle}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{t.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'capitalize' }}>
+                      {t.status} · {t.starts_at ? new Date(t.starts_at).toLocaleString() : 'Start time TBD'} ·{' '}
+                      {t.entry_fee > 0 ? `$${t.entry_fee}` : 'Free'}
+                      {t.prize_pool > 0 && ` · $${t.prize_pool} prize`}
+                    </div>
+                  </Link>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <Link href={`/tournaments/${t.id}`} style={viewBtnStyle}>
+                      View
+                    </Link>
+                    {joined ? (
+                      <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Joined</span>
+                    ) : (
+                      <button onClick={() => handleJoinTournament(t.id)} disabled={!canJoin || busyId === t.id} style={joinBtnStyle}>
+                        {busyId === t.id ? '…' : canJoin ? 'Join' : 'Closed'}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800 }}>{t.entry_fee > 0 ? `$${t.entry_fee}` : 'Free'}</div>
-                  {t.prize_pool > 0 && <div style={{ fontSize: 11, color: '#29e7cd' }}>${t.prize_pool} prize</div>}
-                </div>
-              </Link>
-            ))
+              );
+            })
           )}
         </GameSection>
 
@@ -200,17 +323,32 @@ export default function GameChallengesPage() {
           {leagues.length === 0 ? (
             <EmptyRow text={`No leagues for ${game.title} yet.`} />
           ) : (
-            leagues.map((l) => (
-              <Link key={l.id} href={`/leagues/${l.id}`} style={rowLinkStyle}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{l.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'capitalize' }}>
-                    {l.status} · Up to {l.max_players} players
+            leagues.map((l) => {
+              const joined = joinedLeagueIds.has(l.id);
+              const canJoin = l.status === 'open' && !joined;
+              return (
+                <div key={l.id} style={rowStyle}>
+                  <Link href={`/leagues/${l.id}`} style={rowInfoLinkStyle}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{l.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'capitalize' }}>
+                      {l.status} · Up to {l.max_players} players · {l.entry_fee > 0 ? `$${l.entry_fee}` : 'Free'}
+                    </div>
+                  </Link>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <Link href={`/leagues/${l.id}`} style={viewBtnStyle}>
+                      View
+                    </Link>
+                    {joined ? (
+                      <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Joined</span>
+                    ) : (
+                      <button onClick={() => handleJoinLeague(l.id)} disabled={!canJoin || busyId === l.id} style={joinBtnStyle}>
+                        {busyId === l.id ? '…' : canJoin ? 'Join' : 'Closed'}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>{l.entry_fee > 0 ? `$${l.entry_fee}` : 'Free'}</div>
-              </Link>
-            ))
+              );
+            })
           )}
         </GameSection>
       </section>
@@ -235,12 +373,44 @@ function EmptyRow({ text }: { text: string }) {
   return <div style={{ padding: 16, fontSize: 13, color: 'var(--muted)' }}>{text}</div>;
 }
 
-const rowLinkStyle: React.CSSProperties = {
+const rowStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
+  gap: 12,
   padding: '14px 16px',
   borderBottom: '1px solid var(--panel-border)',
+  flexWrap: 'wrap',
+};
+
+const rowInfoLinkStyle: React.CSSProperties = {
   textDecoration: 'none',
   color: '#fff',
+  flex: 1,
+  minWidth: 180,
+};
+
+const viewBtnStyle: React.CSSProperties = {
+  border: '1px solid var(--panel-border)',
+  color: '#fff',
+  padding: '8px 14px',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  borderRadius: 4,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
+};
+
+const joinBtnStyle: React.CSSProperties = {
+  border: '1px solid var(--red)',
+  background: 'var(--red)',
+  color: '#fff',
+  padding: '8px 14px',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  borderRadius: 4,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
 };
