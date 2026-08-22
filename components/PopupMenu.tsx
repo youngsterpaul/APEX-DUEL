@@ -112,6 +112,25 @@ export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }:
                 My Profile
               </Link>
               <Link
+                href="/active"
+                onClick={onClose}
+                style={{
+                  display: 'block',
+                  textAlign: 'center',
+                  border: '1px solid var(--panel-border)',
+                  color: '#fff',
+                  padding: '10px 14px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textTransform: 'uppercase',
+                  borderRadius: 4,
+                  marginBottom: 10,
+                  textDecoration: 'none',
+                }}
+              >
+                My Active
+              </Link>
+              <Link
                 href="/transfers"
                 onClick={onClose}
                 style={{

@@ -97,7 +97,7 @@ export default function ActiveChallenges() {
                           {formatTime(d.scheduled_at)} · Status: {d.status}
                         </span>
                       </div>
-                      <Link href={`/duels/${d.id}`} style={viewButtonStyle}>
+                      <Link href={`/duel/${d.id}`} style={viewButtonStyle}>
                         View
                       </Link>
                     </div>
