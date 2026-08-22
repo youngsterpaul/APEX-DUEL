@@ -14,6 +14,14 @@ interface Profile {
   whatsapp_phone?: string | null;
 }
 
+interface JoinRequest {
+  id: string;
+  profile_id: string;
+  creator_id: string;
+  status: 'pending' | 'approved' | 'declined';
+  username?: string;
+}
+
 const POLL_MS = 3000;
 
 export default function DuelChatPage() {
@@ -25,6 +33,7 @@ export default function DuelChatPage() {
   const [player1, setPlayer1] = useState<Profile | null>(null);
   const [player2, setPlayer2] = useState<Profile | null>(null);
   const [messages, setMessages] = useState<DuelMessage[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -32,6 +41,7 @@ export default function DuelChatPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
   const [proposedWinnerChoice, setProposedWinnerChoice] = useState<string>('');
 
   const [now, setNow] = useState(() => Date.now());
@@ -59,11 +69,12 @@ export default function DuelChatPage() {
     setDuel(duelData as Duel);
 
     const profileIds = [duelData.player1_id, duelData.player2_id].filter(Boolean);
-    const [{ data: profilesData }, { data: messagesData }] = await Promise.all([
+    const [{ data: profilesData }, { data: messagesData }, { data: requestData }] = await Promise.all([
       supabase.from('profiles').select('id, username, avatar_url, whatsapp_username, whatsapp_phone').in('id', profileIds),
       duelData.player2_id
         ? supabase.from('duel_messages').select('*').eq('duel_id', id).order('created_at', { ascending: true })
         : Promise.resolve({ data: [] as DuelMessage[] }),
+      supabase.from('join_requests').select('id, profile_id, creator_id, status').eq('kind', 'duel').eq('entity_id', id),
     ]);
 
     if (profilesData) {
@@ -71,6 +82,17 @@ export default function DuelChatPage() {
       setPlayer2(profilesData.find((p) => p.id === duelData.player2_id) || null);
     }
     if (messagesData) setMessages(messagesData as DuelMessage[]);
+
+    const requests = requestData || [];
+    if (requests.length > 0) {
+      const ids = Array.from(new Set(requests.map((r) => r.profile_id)));
+      const { data: reqProfiles } = await supabase.from('profiles').select('id, username').in('id', ids);
+      const nameMap: Record<string, string> = {};
+      (reqProfiles || []).forEach((p: any) => (nameMap[p.id] = p.username));
+      setJoinRequests(requests.map((r) => ({ ...r, username: nameMap[r.profile_id] })));
+    } else {
+      setJoinRequests([]);
+    }
 
     setLoading(false);
   }, [id]);
@@ -89,6 +111,20 @@ export default function DuelChatPage() {
   const isP2 = session && duel && session.user.id === duel.player2_id;
   const isParticipant = isP1 || isP2;
   const chatUnlocked = !!duel?.player2_id;
+  const myRequest = session && duel ? joinRequests.find((r) => r.profile_id === session.user.id) : undefined;
+  const pendingRequests = isP1 ? joinRequests.filter((r) => r.status === 'pending') : [];
+
+  const handleRespond = async (requestId: string, approve: boolean) => {
+    setRespondingId(requestId);
+    setError(null);
+    const { error: respondError } = await supabase.rpc('respond_to_join_request', { p_request_id: requestId, p_approve: approve });
+    setRespondingId(null);
+    if (respondError) {
+      setError(respondError.message);
+      return;
+    }
+    fetchAll();
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,10 +199,31 @@ export default function DuelChatPage() {
     );
   }
 
-  if (session && !isParticipant) {
+  if (session && !isParticipant && !myRequest) {
     return (
       <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh', textAlign: 'center', padding: '80px 20px' }}>
         <p style={{ color: 'var(--muted)' }}>You're not a participant in this match.</p>
+      </div>
+    );
+  }
+
+  if (session && !isParticipant && myRequest) {
+    return (
+      <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh', textAlign: 'center', padding: '80px 20px' }}>
+        <Head><title>{duel.game} Match | ApexDuel</title></Head>
+        <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12 }}>{duel.game}</h1>
+        {myRequest.status === 'pending' ? (
+          <div style={{ display: 'inline-block', padding: '12px 20px', background: 'rgba(212,175,55,0.08)', border: '1px solid var(--gold)', borderRadius: 6, color: 'var(--gold)', fontSize: 14, fontWeight: 700 }}>
+            ⏳ Request sent — waiting on the host to approve it
+          </div>
+        ) : (
+          <div style={{ display: 'inline-block', padding: '12px 20px', background: 'rgba(255,68,68,0.08)', border: '1px solid #ff4444', borderRadius: 6, color: '#ff4444', fontSize: 14, fontWeight: 700 }}>
+            ❌ Your request to join was declined
+          </div>
+        )}
+        <div style={{ marginTop: 20 }}>
+          <Link href="/duels" style={{ color: 'var(--red)', fontSize: 13 }}>← Back to Matches</Link>
+        </div>
       </div>
     );
   }
@@ -236,6 +293,38 @@ export default function DuelChatPage() {
             </div>
           );
         })()}
+
+        {/* Creator: pending join requests to approve/decline */}
+        {isP1 && !duel.player2_id && pendingRequests.length > 0 && (
+          <div style={{ marginTop: 12, background: '#131627', border: '1px solid var(--gold)', borderRadius: 8, padding: 16 }}>
+            <p style={{ fontSize: 11, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 10 }}>
+              Pending Join Requests ({pendingRequests.length})
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pendingRequests.map((r) => (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '6px 0', borderBottom: '1px solid var(--panel-border)' }}>
+                  <span>{r.username || 'Player'}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => handleRespond(r.id, true)}
+                      disabled={respondingId === r.id}
+                      style={{ background: 'transparent', border: '1px solid #29e7cd', color: '#29e7cd', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      ✅ Approve
+                    </button>
+                    <button
+                      onClick={() => handleRespond(r.id, false)}
+                      disabled={respondingId === r.id}
+                      style={{ background: 'transparent', border: '1px solid #ff4444', color: '#ff4444', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      ❌ Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Contact info reveal — once the opponent has joined */}
         {chatUnlocked && opponent && (

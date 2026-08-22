@@ -23,6 +23,7 @@ export default function CreateTournament() {
   const [freeToJoin, setFreeToJoin] = useState(true);
   const [entryFee, setEntryFee] = useState('0');
   const [hostFee, setHostFee] = useState('50');
+  const [joinMode, setJoinMode] = useState<'open' | 'approval'>('open');
   const [prizePool, setPrizePool] = useState('0');
   const [payoutPlaces, setPayoutPlaces] = useState<'1' | '2' | '3'>('1');
   const [startsAt, setStartsAt] = useState('');
@@ -116,6 +117,7 @@ export default function CreateTournament() {
         p_ends_at: endsIso,
         p_image_url: imageUrl,
         p_host_fee: freeToJoin ? hFee : 0,
+        p_join_mode: joinMode,
       });
 
       if (error) throw error;
@@ -308,6 +310,23 @@ export default function CreateTournament() {
           <p style={{ fontSize: 12, color: 'var(--muted)' }}>
             You don't have to compete in the tournament you create — you can host it and just track progress, or register as a player too if you want to compete.
           </p>
+
+          <div>
+            <label style={labelStyle}>Who can join?</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setJoinMode('open')} style={toggleStyle(joinMode === 'open')}>
+                Anyone Can Join
+              </button>
+              <button type="button" onClick={() => setJoinMode('approval')} style={toggleStyle(joinMode === 'approval')}>
+                I'll Approve Each Request
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
+              {joinMode === 'open'
+                ? 'Players are registered the moment they click Join.'
+                : "Players who click Join will send a request. You'll need to approve or decline each one before they're in."}
+            </p>
+          </div>
 
           <div>
             <label style={labelStyle}>Prize pool ($, optional)</label>

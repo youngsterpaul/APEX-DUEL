@@ -20,6 +20,7 @@ interface TournamentRow {
   ends_at: string | null;
   image_url: string | null;
   share_code: string;
+  join_mode: 'open' | 'approval';
 }
 
 interface Stage {
@@ -37,6 +38,14 @@ interface Participant {
   final_placement: number | null;
 }
 
+interface JoinRequest {
+  id: string;
+  profile_id: string;
+  creator_id: string;
+  status: 'pending' | 'approved' | 'declined';
+  username?: string;
+}
+
 export default function TournamentDetailPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -46,10 +55,12 @@ export default function TournamentDetailPage() {
   const [gameTitle, setGameTitle] = useState('');
   const [stages, setStages] = useState<Stage[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   const [busy, setBusy] = useState(false);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [now, setNow] = useState(() => Date.now());
@@ -77,7 +88,7 @@ export default function TournamentDetailPage() {
     }
     setTournament(tData as TournamentRow);
 
-    const [{ data: gameData }, { data: stageData }, { data: participantData }] = await Promise.all([
+    const [{ data: gameData }, { data: stageData }, { data: participantData }, { data: requestData }] = await Promise.all([
       supabase.from('games').select('title').eq('id', tData.game_id).maybeSingle(),
       supabase.from('tournament_stages').select('stage_number, name, games_per_pairing').eq('tournament_id', tournamentId).order('stage_number'),
       supabase
@@ -85,11 +96,24 @@ export default function TournamentDetailPage() {
         .select('profile_id, username, wins, points, eliminated, final_placement')
         .eq('tournament_id', tournamentId)
         .order('points', { ascending: false }),
+      supabase.from('join_requests').select('id, profile_id, creator_id, status').eq('kind', 'tournament').eq('entity_id', tournamentId),
     ]);
 
     setGameTitle(gameData?.title || '');
     setStages(stageData || []);
     setParticipants(participantData || []);
+
+    const requests = requestData || [];
+    if (requests.length > 0) {
+      const ids = Array.from(new Set(requests.map((r) => r.profile_id)));
+      const { data: profilesData } = await supabase.from('profiles').select('id, username').in('id', ids);
+      const nameMap: Record<string, string> = {};
+      (profilesData || []).forEach((p: any) => (nameMap[p.id] = p.username));
+      setJoinRequests(requests.map((r) => ({ ...r, username: nameMap[r.profile_id] })));
+    } else {
+      setJoinRequests([]);
+    }
+
     setLoading(false);
   };
 
@@ -103,8 +127,23 @@ export default function TournamentDetailPage() {
       setMessage({ type: 'error', text: error.message });
       return;
     }
-    setMessage({ type: 'success', text: "You're registered!" });
+    setMessage({
+      type: 'success',
+      text: tournament?.join_mode === 'approval' ? 'Request sent — waiting on the host to approve it.' : "You're registered!",
+    });
     fetchAll(id);
+  };
+
+  const handleRespond = async (requestId: string, approve: boolean) => {
+    setRespondingId(requestId);
+    setMessage(null);
+    const { error } = await supabase.rpc('respond_to_join_request', { p_request_id: requestId, p_approve: approve });
+    setRespondingId(null);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    if (typeof id === 'string') fetchAll(id);
   };
 
   if (loading) {
@@ -123,7 +162,10 @@ export default function TournamentDetailPage() {
   const started = tournament.starts_at ? new Date(tournament.starts_at).getTime() <= Date.now() : false;
   const alreadyJoined = session && participants.some((p) => p.profile_id === session.user.id);
   const isCreator = session && tournament.created_by === session.user.id;
-  const canJoin = session && !started && tournament.status === 'registration' && !alreadyJoined;
+  const myRequest = session ? joinRequests.find((r) => r.profile_id === session.user.id) : undefined;
+  const pendingRequests = isCreator ? joinRequests.filter((r) => r.status === 'pending') : [];
+  const isApproval = tournament.join_mode === 'approval';
+  const canJoin = session && !started && tournament.status === 'registration' && !alreadyJoined && myRequest?.status !== 'pending';
   const totalGames = stages.reduce((sum, s) => sum + s.games_per_pairing, 0);
 
   const winningExplainer =
@@ -232,6 +274,7 @@ export default function TournamentDetailPage() {
           />
           <Detail label="Ends" value={tournament.ends_at ? new Date(tournament.ends_at).toLocaleString() : 'TBD'} />
           <Detail label="Status" value={started ? 'Started / Closed' : 'Registration Open'} color={started ? '#ff4444' : '#29e7cd'} />
+          <Detail label="Joining" value={isApproval ? 'Requires Host Approval' : 'Open to Everyone'} color={isApproval ? 'var(--gold)' : undefined} />
           {tournament.entry_fee <= 0 && tournament.host_fee > 0 && <Detail label="Hosting Fee" value={`$${tournament.host_fee} (paid by host)`} />}
         </div>
 
@@ -240,6 +283,30 @@ export default function TournamentDetailPage() {
           <p style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>How the winner is determined</p>
           <p style={{ fontSize: 13, color: '#d8dae0' }}>{winningExplainer}</p>
         </div>
+
+        {/* Creator: pending join requests to approve/decline */}
+        {isCreator && pendingRequests.length > 0 && (
+          <div style={{ background: '#131627', border: '1px solid var(--gold)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <p style={{ fontSize: 11, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 10 }}>
+              Pending Join Requests ({pendingRequests.length})
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pendingRequests.map((r) => (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '6px 0', borderBottom: '1px solid var(--panel-border)' }}>
+                  <span>{r.username || 'Player'}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => handleRespond(r.id, true)} disabled={respondingId === r.id} style={approveBtnStyle}>
+                      ✅ Approve
+                    </button>
+                    <button onClick={() => handleRespond(r.id, false)} disabled={respondingId === r.id} style={declineBtnStyle}>
+                      ❌ Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Join action */}
         <div style={{ marginBottom: 24 }}>
@@ -252,6 +319,10 @@ export default function TournamentDetailPage() {
             <div style={{ padding: 12, textAlign: 'center', background: 'rgba(41,231,205,0.1)', border: '1px solid #29e7cd', borderRadius: 6, color: '#29e7cd', fontSize: 13, fontWeight: 700 }}>
               ✅ You're registered for this tournament
             </div>
+          ) : myRequest?.status === 'pending' ? (
+            <div style={{ padding: 12, textAlign: 'center', background: 'rgba(212,175,55,0.08)', border: '1px solid var(--gold)', borderRadius: 6, color: 'var(--gold)', fontSize: 13, fontWeight: 700 }}>
+              ⏳ Request sent — waiting on the host to approve it
+            </div>
           ) : started ? (
             <div style={{ padding: 12, textAlign: 'center', background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 6, color: 'var(--muted)', fontSize: 13 }}>
               🔒 Registration closed — this tournament has started
@@ -261,9 +332,22 @@ export default function TournamentDetailPage() {
               Sign in to Join
             </Link>
           ) : (
-            <button onClick={handleJoin} disabled={busy || !canJoin} style={{ ...primaryBtnStyle, width: '100%' }}>
-              {busy ? 'Joining…' : `Join Tournament${tournament.entry_fee > 0 ? ` — $${tournament.entry_fee}` : ''}`}
-            </button>
+            <>
+              {myRequest?.status === 'declined' && (
+                <p style={{ fontSize: 12, color: '#ff4444', textAlign: 'center', marginBottom: 8 }}>
+                  Your previous request was declined. You can try again below.
+                </p>
+              )}
+              <button onClick={handleJoin} disabled={busy || !canJoin} style={{ ...primaryBtnStyle, width: '100%' }}>
+                {busy
+                  ? isApproval
+                    ? 'Sending request…'
+                    : 'Joining…'
+                  : isApproval
+                  ? `Request to Join${tournament.entry_fee > 0 ? ` — $${tournament.entry_fee}` : ''}`
+                  : `Join Tournament${tournament.entry_fee > 0 ? ` — $${tournament.entry_fee}` : ''}`}
+              </button>
+            </>
           )}
         </div>
 
@@ -312,5 +396,27 @@ const primaryBtnStyle: React.CSSProperties = {
   fontWeight: 700,
   fontSize: 14,
   textTransform: 'uppercase',
+  cursor: 'pointer',
+};
+
+const approveBtnStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid #29e7cd',
+  color: '#29e7cd',
+  borderRadius: 4,
+  padding: '6px 12px',
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: 'pointer',
+};
+
+const declineBtnStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid #ff4444',
+  color: '#ff4444',
+  borderRadius: 4,
+  padding: '6px 12px',
+  fontSize: 12,
+  fontWeight: 700,
   cursor: 'pointer',
 };

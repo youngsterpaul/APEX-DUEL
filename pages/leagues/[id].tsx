@@ -20,6 +20,7 @@ interface LeagueRow {
   image_url: string | null;
   share_code: string;
   group_link?: string | null;
+  join_mode: 'open' | 'approval';
 }
 
 interface Participant {
@@ -30,6 +31,14 @@ interface Participant {
   points: number;
 }
 
+interface JoinRequest {
+  id: string;
+  profile_id: string;
+  creator_id: string;
+  status: 'pending' | 'approved' | 'declined';
+  username?: string;
+}
+
 export default function LeagueDetailPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -38,10 +47,12 @@ export default function LeagueDetailPage() {
   const [league, setLeague] = useState<LeagueRow | null>(null);
   const [gameTitle, setGameTitle] = useState('');
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   const [busy, setBusy] = useState(false);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [now, setNow] = useState(() => Date.now());
@@ -69,17 +80,30 @@ export default function LeagueDetailPage() {
     }
     setLeague(lData as LeagueRow);
 
-    const [{ data: gameData }, { data: participantData }] = await Promise.all([
+    const [{ data: gameData }, { data: participantData }, { data: requestData }] = await Promise.all([
       supabase.from('games').select('title').eq('id', lData.game_id).maybeSingle(),
       supabase
         .from('league_participants')
         .select('profile_id, username, wins, losses, points')
         .eq('league_id', leagueId)
         .order('points', { ascending: false }),
+      supabase.from('join_requests').select('id, profile_id, creator_id, status').eq('kind', 'league').eq('entity_id', leagueId),
     ]);
 
     setGameTitle(gameData?.title || '');
     setParticipants(participantData || []);
+
+    const requests = requestData || [];
+    if (requests.length > 0) {
+      const ids = Array.from(new Set(requests.map((r) => r.profile_id)));
+      const { data: profilesData } = await supabase.from('profiles').select('id, username').in('id', ids);
+      const nameMap: Record<string, string> = {};
+      (profilesData || []).forEach((p: any) => (nameMap[p.id] = p.username));
+      setJoinRequests(requests.map((r) => ({ ...r, username: nameMap[r.profile_id] })));
+    } else {
+      setJoinRequests([]);
+    }
+
     setLoading(false);
   };
 
@@ -93,8 +117,23 @@ export default function LeagueDetailPage() {
       setMessage({ type: 'error', text: error.message });
       return;
     }
-    setMessage({ type: 'success', text: "You're in!" });
+    setMessage({
+      type: 'success',
+      text: league?.join_mode === 'approval' ? 'Request sent — waiting on the host to approve it.' : "You're in!",
+    });
     fetchAll(id);
+  };
+
+  const handleRespond = async (requestId: string, approve: boolean) => {
+    setRespondingId(requestId);
+    setMessage(null);
+    const { error } = await supabase.rpc('respond_to_join_request', { p_request_id: requestId, p_approve: approve });
+    setRespondingId(null);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    if (typeof id === 'string') fetchAll(id);
   };
 
   if (loading) {
@@ -113,8 +152,11 @@ export default function LeagueDetailPage() {
   const started = league.starts_at ? new Date(league.starts_at).getTime() <= Date.now() : false;
   const alreadyJoined = session && participants.some((p) => p.profile_id === session.user.id);
   const isCreator = session && league.created_by === session.user.id;
+  const myRequest = session ? joinRequests.find((r) => r.profile_id === session.user.id) : undefined;
+  const pendingRequests = isCreator ? joinRequests.filter((r) => r.status === 'pending') : [];
+  const isApproval = league.join_mode === 'approval';
   const full = participants.length >= league.max_players;
-  const canJoin = session && !started && league.status === 'open' && !alreadyJoined && !full;
+  const canJoin = session && !started && league.status === 'open' && !alreadyJoined && !full && myRequest?.status !== 'pending';
   const free = !league.entry_fee || league.entry_fee <= 0;
 
   return (
@@ -217,6 +259,7 @@ export default function LeagueDetailPage() {
           <Detail label="Ends" value={league.ends_at ? new Date(league.ends_at).toLocaleString() : 'TBD'} />
           <Detail label="Status" value={started ? 'Started / Closed' : 'Open to Join'} color={started ? '#ff4444' : '#29e7cd'} />
           <Detail label="Code" value={league.share_code} />
+          <Detail label="Joining" value={isApproval ? 'Requires Host Approval' : 'Open to Everyone'} color={isApproval ? 'var(--gold)' : undefined} />
           {free && league.host_fee > 0 && <Detail label="Hosting Fee" value={`$${league.host_fee} (paid by host)`} />}
         </div>
 
@@ -242,6 +285,30 @@ export default function LeagueDetailPage() {
           </div>
         )}
 
+        {/* Creator: pending join requests to approve/decline */}
+        {isCreator && pendingRequests.length > 0 && (
+          <div style={{ background: '#131627', border: '1px solid var(--gold)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <p style={{ fontSize: 11, color: 'var(--gold)', textTransform: 'uppercase', marginBottom: 10 }}>
+              Pending Join Requests ({pendingRequests.length})
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pendingRequests.map((r) => (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '6px 0', borderBottom: '1px solid var(--panel-border)' }}>
+                  <span>{r.username || 'Player'}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => handleRespond(r.id, true)} disabled={respondingId === r.id} style={approveBtnStyle}>
+                      ✅ Approve
+                    </button>
+                    <button onClick={() => handleRespond(r.id, false)} disabled={respondingId === r.id} style={declineBtnStyle}>
+                      ❌ Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Join action */}
         <div style={{ marginBottom: 24 }}>
           {isCreator && !alreadyJoined && (
@@ -252,6 +319,10 @@ export default function LeagueDetailPage() {
           {alreadyJoined ? (
             <div style={{ padding: 12, textAlign: 'center', background: 'rgba(41,231,205,0.1)', border: '1px solid #29e7cd', borderRadius: 6, color: '#29e7cd', fontSize: 13, fontWeight: 700 }}>
               ✅ You're in this league
+            </div>
+          ) : myRequest?.status === 'pending' ? (
+            <div style={{ padding: 12, textAlign: 'center', background: 'rgba(212,175,55,0.08)', border: '1px solid var(--gold)', borderRadius: 6, color: 'var(--gold)', fontSize: 13, fontWeight: 700 }}>
+              ⏳ Request sent — waiting on the host to approve it
             </div>
           ) : started ? (
             <div style={{ padding: 12, textAlign: 'center', background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 6, color: 'var(--muted)', fontSize: 13 }}>
@@ -266,9 +337,22 @@ export default function LeagueDetailPage() {
               Sign in to Join
             </Link>
           ) : (
-            <button onClick={handleJoin} disabled={busy || !canJoin} style={{ ...primaryBtnStyle, width: '100%' }}>
-              {busy ? 'Joining…' : `Join League${!free ? ` — $${league.entry_fee}` : ''}`}
-            </button>
+            <>
+              {myRequest?.status === 'declined' && (
+                <p style={{ fontSize: 12, color: '#ff4444', textAlign: 'center', marginBottom: 8 }}>
+                  Your previous request was declined. You can try again below.
+                </p>
+              )}
+              <button onClick={handleJoin} disabled={busy || !canJoin} style={{ ...primaryBtnStyle, width: '100%' }}>
+                {busy
+                  ? isApproval
+                    ? 'Sending request…'
+                    : 'Joining…'
+                  : isApproval
+                  ? `Request to Join${!free ? ` — $${league.entry_fee}` : ''}`
+                  : `Join League${!free ? ` — $${league.entry_fee}` : ''}`}
+              </button>
+            </>
           )}
         </div>
 
@@ -315,5 +399,27 @@ const primaryBtnStyle: React.CSSProperties = {
   fontWeight: 700,
   fontSize: 14,
   textTransform: 'uppercase',
+  cursor: 'pointer',
+};
+
+const approveBtnStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid #29e7cd',
+  color: '#29e7cd',
+  borderRadius: 4,
+  padding: '6px 12px',
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: 'pointer',
+};
+
+const declineBtnStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid #ff4444',
+  color: '#ff4444',
+  borderRadius: 4,
+  padding: '6px 12px',
+  fontSize: 12,
+  fontWeight: 700,
   cursor: 'pointer',
 };

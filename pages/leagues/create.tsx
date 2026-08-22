@@ -21,6 +21,7 @@ export default function CreateLeague() {
   const [freeToJoin, setFreeToJoin] = useState(true);
   const [entryFee, setEntryFee] = useState('5');
   const [hostFee, setHostFee] = useState('50');
+  const [joinMode, setJoinMode] = useState<'open' | 'approval'>('open');
   const [maxPlayers, setMaxPlayers] = useState('30');
   const [roundsPerOpponent, setRoundsPerOpponent] = useState<'1' | '2'>('1');
   const [startsAt, setStartsAt] = useState('');
@@ -104,6 +105,7 @@ export default function CreateLeague() {
         p_ends_at: endsIso,
         p_image_url: imageUrl,
         p_host_fee: freeToJoin ? hFee : 0,
+        p_join_mode: joinMode,
       });
 
       if (error) throw error;
@@ -301,6 +303,23 @@ export default function CreateLeague() {
           <p style={{ fontSize: 12, color: 'var(--muted)' }}>
             You don't have to play in the league you create — you can create it purely as the host and watch the standings, or join in like anyone else if you want to compete too.
           </p>
+
+          <div>
+            <label style={labelStyle}>Who can join?</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setJoinMode('open')} style={toggleStyle(joinMode === 'open')}>
+                Anyone Can Join
+              </button>
+              <button type="button" onClick={() => setJoinMode('approval')} style={toggleStyle(joinMode === 'approval')}>
+                I'll Approve Each Request
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
+              {joinMode === 'open'
+                ? 'Players are added the moment they click Join.'
+                : "Players who click Join will send a request. You'll need to approve or decline each one before they're in."}
+            </p>
+          </div>
 
           <p style={{ fontSize: 12, color: 'var(--muted)' }}>
             After each match, players have 12 hours to mark win / loss / draw. If only one side marks a result in time, that result is applied automatically.

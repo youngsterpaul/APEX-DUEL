@@ -85,6 +85,7 @@ export interface Duel {
   proposed_winner_id: string | null;
   proposed_by: string | null;
   proposed_at: string | null;
+  join_mode: 'open' | 'approval';
   player1?: Profile;
   player2?: Profile;
 }
@@ -107,6 +108,7 @@ export interface Tournament {
   prize_pool: number;
   payout_places: 1 | 2 | 3;
   host_fee?: number;
+  join_mode: 'open' | 'approval';
   status: 'registration' | 'active' | 'completed' | 'cancelled';
   current_stage: number;
   starts_at: string | null;
@@ -162,6 +164,7 @@ export interface League {
   max_players?: number | null;
   rounds_per_opponent?: number | null;
   host_fee?: number;
+  join_mode: 'open' | 'approval';
   starts_at: string | null;
   ends_at: string | null;
   image_url: string | null;

@@ -10,6 +10,7 @@ export default function CreateDuel() {
   const [entryFee, setEntryFee] = useState('5');
   const [scheduledAt, setScheduledAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  const [joinMode, setJoinMode] = useState<'open' | 'approval'>('open');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -69,6 +70,7 @@ export default function CreateDuel() {
         p_scheduled_at: scheduledIso,
         p_image_url: imageUrl,
         p_ends_at: endsIso,
+        p_join_mode: joinMode,
       });
 
       if (error) throw error;
@@ -163,6 +165,23 @@ export default function CreateDuel() {
             </p>
           </div>
 
+          <div>
+            <label style={labelStyle}>Who can join?</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setJoinMode('open')} style={toggleStyle(joinMode === 'open')}>
+                Anyone Can Join
+              </button>
+              <button type="button" onClick={() => setJoinMode('approval')} style={toggleStyle(joinMode === 'approval')}>
+                I'll Approve the Request
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
+              {joinMode === 'open'
+                ? 'The first person to click Join becomes your opponent.'
+                : "Someone who clicks Join sends a request. You'll need to approve it before they become your opponent."}
+            </p>
+          </div>
+
           <button type="submit" disabled={loading} style={primaryButtonStyle}>
             {loading ? 'Creating…' : 'Create Match'}
           </button>
@@ -176,3 +195,16 @@ const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, color:
 const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 14px', background: '#131627', border: '1px solid var(--panel-border)', color: '#fff', borderRadius: 4, fontSize: 14 };
 const primaryButtonStyle: React.CSSProperties = { background: 'var(--red)', color: '#0a0b14', padding: '13px', fontWeight: 700, border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', borderRadius: 4, fontSize: 14, width: '100%' };
 const backLinkStyle: React.CSSProperties = { background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 13, cursor: 'pointer', textAlign: 'left', padding: 0 };
+const toggleStyle = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  padding: '12px 14px',
+  background: active ? 'var(--red)' : '#131627',
+  color: '#fff',
+  border: '1px solid var(--panel-border)',
+  borderRadius: 4,
+  fontSize: 13,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.03em',
+  cursor: 'pointer',
+});
