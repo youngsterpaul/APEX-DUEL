@@ -356,24 +356,30 @@ export default function LeagueDetailPage() {
           )}
         </div>
 
-        {/* Standings */}
+        {/* Standings — identities and progress are only visible to the host or someone who has joined */}
         <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16 }}>
           <p style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 10 }}>
             Standings ({participants.length})
           </p>
-          {participants.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>No one has joined yet — be the first!</p>
+          {isCreator || alreadyJoined ? (
+            participants.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--muted)' }}>No one has joined yet — be the first!</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {participants.map((p, i) => (
+                  <div key={p.profile_id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderBottom: '1px solid var(--panel-border)' }}>
+                    <span>{i + 1}. {p.username}</span>
+                    <span style={{ color: 'var(--muted)' }}>
+                      {p.wins}W–{p.losses}L · {p.points} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {participants.map((p, i) => (
-                <div key={p.profile_id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderBottom: '1px solid var(--panel-border)' }}>
-                  <span>{i + 1}. {p.username}</span>
-                  <span style={{ color: 'var(--muted)' }}>
-                    {p.wins}W–{p.losses}L · {p.points} pts
-                  </span>
-                </div>
-              ))}
-            </div>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>
+              🔒 Join this league to see who else is competing and follow live standings.
+            </p>
           )}
         </div>
       </section>
