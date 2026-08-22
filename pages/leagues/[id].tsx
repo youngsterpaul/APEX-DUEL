@@ -14,6 +14,7 @@ interface LeagueRow {
   entry_fee: number;
   max_players: number;
   rounds_per_opponent: number;
+  host_fee: number;
   starts_at: string | null;
   ends_at: string | null;
   image_url: string | null;
@@ -111,6 +112,7 @@ export default function LeagueDetailPage() {
 
   const started = league.starts_at ? new Date(league.starts_at).getTime() <= Date.now() : false;
   const alreadyJoined = session && participants.some((p) => p.profile_id === session.user.id);
+  const isCreator = session && league.created_by === session.user.id;
   const full = participants.length >= league.max_players;
   const canJoin = session && !started && league.status === 'open' && !alreadyJoined && !full;
   const free = !league.entry_fee || league.entry_fee <= 0;
@@ -215,6 +217,7 @@ export default function LeagueDetailPage() {
           <Detail label="Ends" value={league.ends_at ? new Date(league.ends_at).toLocaleString() : 'TBD'} />
           <Detail label="Status" value={started ? 'Started / Closed' : 'Open to Join'} color={started ? '#ff4444' : '#29e7cd'} />
           <Detail label="Code" value={league.share_code} />
+          {free && league.host_fee > 0 && <Detail label="Hosting Fee" value={`$${league.host_fee} (paid by host)`} />}
         </div>
 
         {/* Winning determination */}
@@ -241,6 +244,11 @@ export default function LeagueDetailPage() {
 
         {/* Join action */}
         <div style={{ marginBottom: 24 }}>
+          {isCreator && !alreadyJoined && (
+            <div style={{ padding: 12, marginBottom: 10, textAlign: 'center', background: 'rgba(212,175,55,0.08)', border: '1px solid var(--gold)', borderRadius: 6, color: 'var(--gold)', fontSize: 13 }}>
+              👑 You're hosting this league. You can watch standings here without joining, or join below to compete too.
+            </div>
+          )}
           {alreadyJoined ? (
             <div style={{ padding: 12, textAlign: 'center', background: 'rgba(41,231,205,0.1)', border: '1px solid #29e7cd', borderRadius: 6, color: '#29e7cd', fontSize: 13, fontWeight: 700 }}>
               ✅ You're in this league

@@ -20,6 +20,7 @@ export default function CreateLeague() {
   const [name, setName] = useState('');
   const [freeToJoin, setFreeToJoin] = useState(true);
   const [entryFee, setEntryFee] = useState('5');
+  const [hostFee, setHostFee] = useState('50');
   const [maxPlayers, setMaxPlayers] = useState('30');
   const [roundsPerOpponent, setRoundsPerOpponent] = useState<'1' | '2'>('1');
   const [startsAt, setStartsAt] = useState('');
@@ -69,6 +70,12 @@ export default function CreateLeague() {
       return;
     }
 
+    const hFee = parseFloat(hostFee) || 0;
+    if (freeToJoin && hFee < 50) {
+      setMessage({ type: 'error', text: 'Free leagues require a hosting fee of at least $50, paid by you as the creator.' });
+      return;
+    }
+
     const startsIso = startsAt ? new Date(startsAt).toISOString() : null;
     const endsIso = endsAt ? new Date(endsAt).toISOString() : null;
     if (startsIso && new Date(startsIso).getTime() <= Date.now()) {
@@ -96,6 +103,7 @@ export default function CreateLeague() {
         p_starts_at: startsIso,
         p_ends_at: endsIso,
         p_image_url: imageUrl,
+        p_host_fee: freeToJoin ? hFee : 0,
       });
 
       if (error) throw error;
@@ -270,17 +278,29 @@ export default function CreateLeague() {
             </div>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
               {freeToJoin
-                ? 'Anyone can find and join this league for free from the Leagues page.'
+                ? 'Free for players to join. As the host, you pay a one-time hosting fee instead.'
                 : 'Players pay a stake to join. The league is invite-only via your share code.'}
             </p>
           </div>
 
-          {!freeToJoin && (
+          {freeToJoin ? (
+            <div>
+              <label style={labelStyle}>Hosting fee ($, min 50) — paid by you</label>
+              <input type="number" min="50" step="0.01" required value={hostFee} onChange={(e) => setHostFee(e.target.value)} style={inputStyle} />
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+                Since this league is free for players, you cover the cost of hosting it — minimum $50.
+              </p>
+            </div>
+          ) : (
             <div>
               <label style={labelStyle}>Entry fee per player ($, min 1)</label>
               <input type="number" min="1" step="0.01" required value={entryFee} onChange={(e) => setEntryFee(e.target.value)} style={inputStyle} />
             </div>
           )}
+
+          <p style={{ fontSize: 12, color: 'var(--muted)' }}>
+            You don't have to play in the league you create — you can create it purely as the host and watch the standings, or join in like anyone else if you want to compete too.
+          </p>
 
           <p style={{ fontSize: 12, color: 'var(--muted)' }}>
             After each match, players have 12 hours to mark win / loss / draw. If only one side marks a result in time, that result is applied automatically.

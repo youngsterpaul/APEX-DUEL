@@ -22,6 +22,7 @@ export default function CreateTournament() {
   const [gamesPerStage, setGamesPerStage] = useState('1');
   const [freeToJoin, setFreeToJoin] = useState(true);
   const [entryFee, setEntryFee] = useState('0');
+  const [hostFee, setHostFee] = useState('50');
   const [prizePool, setPrizePool] = useState('0');
   const [payoutPlaces, setPayoutPlaces] = useState<'1' | '2' | '3'>('1');
   const [startsAt, setStartsAt] = useState('');
@@ -71,6 +72,12 @@ export default function CreateTournament() {
       return;
     }
 
+    const hFee = parseFloat(hostFee) || 0;
+    if (freeToJoin && hFee < 50) {
+      setMessage({ type: 'error', text: 'Free tournaments require a hosting fee of at least $50, paid by you as the creator.' });
+      return;
+    }
+
     const startsIso = startsAt ? new Date(startsAt).toISOString() : null;
     const endsIso = endsAt ? new Date(endsAt).toISOString() : null;
     if (startsIso && new Date(startsIso).getTime() <= Date.now()) {
@@ -108,6 +115,7 @@ export default function CreateTournament() {
         p_starts_at: startsIso,
         p_ends_at: endsIso,
         p_image_url: imageUrl,
+        p_host_fee: freeToJoin ? hFee : 0,
       });
 
       if (error) throw error;
@@ -265,17 +273,41 @@ export default function CreateTournament() {
             </p>
           </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
-            <input type="checkbox" checked={freeToJoin} onChange={(e) => setFreeToJoin(e.target.checked)} />
-            Make this tournament free to join
-          </label>
+          <div>
+            <label style={labelStyle}>Entry type</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setFreeToJoin(true)} style={toggleStyle(freeToJoin)}>
+                Free to Join
+              </button>
+              <button type="button" onClick={() => setFreeToJoin(false)} style={toggleStyle(!freeToJoin)}>
+                Paid Entry
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
+              {freeToJoin
+                ? 'Free for players to join. As the host, you pay a one-time hosting fee instead.'
+                : 'Players pay a stake to join, which is added to the prize pool.'}
+            </p>
+          </div>
 
-          {!freeToJoin && (
+          {freeToJoin ? (
+            <div>
+              <label style={labelStyle}>Hosting fee ($, min 50) — paid by you</label>
+              <input type="number" min="50" step="0.01" required value={hostFee} onChange={(e) => setHostFee(e.target.value)} style={inputStyle} />
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+                Since this tournament is free for players, you cover the cost of hosting it — minimum $50.
+              </p>
+            </div>
+          ) : (
             <div>
               <label style={labelStyle}>Entry fee per player ($, min 1)</label>
               <input type="number" min="1" step="0.01" required value={entryFee} onChange={(e) => setEntryFee(e.target.value)} style={inputStyle} />
             </div>
           )}
+
+          <p style={{ fontSize: 12, color: 'var(--muted)' }}>
+            You don't have to compete in the tournament you create — you can host it and just track progress, or register as a player too if you want to compete.
+          </p>
 
           <div>
             <label style={labelStyle}>Prize pool ($, optional)</label>
@@ -341,3 +373,17 @@ const backLinkStyle: React.CSSProperties = {
   textAlign: 'left',
   padding: 0,
 };
+
+const toggleStyle = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  padding: '12px 14px',
+  background: active ? 'var(--red)' : '#131627',
+  color: '#fff',
+  border: '1px solid var(--panel-border)',
+  borderRadius: 4,
+  fontSize: 13,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.03em',
+  cursor: 'pointer',
+});

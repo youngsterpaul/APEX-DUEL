@@ -106,6 +106,7 @@ export interface Tournament {
   entry_fee: number;
   prize_pool: number;
   payout_places: 1 | 2 | 3;
+  host_fee?: number;
   status: 'registration' | 'active' | 'completed' | 'cancelled';
   current_stage: number;
   starts_at: string | null;
@@ -160,6 +161,7 @@ export interface League {
   entry_fee?: number | null;
   max_players?: number | null;
   rounds_per_opponent?: number | null;
+  host_fee?: number;
   starts_at: string | null;
   ends_at: string | null;
   image_url: string | null;

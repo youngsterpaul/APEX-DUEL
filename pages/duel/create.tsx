@@ -7,7 +7,6 @@ import { uploadEventImage } from '../../lib/storage';
 export default function CreateDuel() {
   const router = useRouter();
   const [game, setGame] = useState('');
-  const [freeToJoin, setFreeToJoin] = useState(true);
   const [entryFee, setEntryFee] = useState('5');
   const [scheduledAt, setScheduledAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
@@ -40,9 +39,9 @@ export default function CreateDuel() {
       return;
     }
 
-    const fee = freeToJoin ? 0 : parseFloat(entryFee) || 0;
-    if (!freeToJoin && fee < 1) {
-      setMessage({ type: 'error', text: 'Entry fee must be at least $1, or mark the match as free.' });
+    const fee = parseFloat(entryFee) || 0;
+    if (fee < 1) {
+      setMessage({ type: 'error', text: 'Entry fee must be at least $1 — 1v1 matches can\'t be free.' });
       return;
     }
 
@@ -156,20 +155,13 @@ export default function CreateDuel() {
             </p>
           </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
-            <input type="checkbox" checked={freeToJoin} onChange={(e) => setFreeToJoin(e.target.checked)} />
-            Make this match free to join
-          </label>
-
-          {!freeToJoin && (
-            <div>
-              <label style={labelStyle}>Entry fee per player ($, min 1)</label>
-              <input type="number" min="1" step="0.01" required value={entryFee} onChange={(e) => setEntryFee(e.target.value)} style={inputStyle} />
-              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-                Charged to you now, and to your opponent when they join. Winner takes the pot once you both confirm the result.
-              </p>
-            </div>
-          )}
+          <div>
+            <label style={labelStyle}>Entry fee per player ($, min 1)</label>
+            <input type="number" min="1" step="0.01" required value={entryFee} onChange={(e) => setEntryFee(e.target.value)} style={inputStyle} />
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              Charged to you now, and to your opponent when they join. Winner takes the pot once you both confirm the result. 1v1 matches can't be free.
+            </p>
+          </div>
 
           <button type="submit" disabled={loading} style={primaryButtonStyle}>
             {loading ? 'Creating…' : 'Create Match'}

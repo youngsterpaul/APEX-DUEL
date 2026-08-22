@@ -14,6 +14,7 @@ interface TournamentRow {
   entry_fee: number;
   prize_pool: number;
   payout_places: number;
+  host_fee: number;
   status: string;
   starts_at: string | null;
   ends_at: string | null;
@@ -121,6 +122,7 @@ export default function TournamentDetailPage() {
 
   const started = tournament.starts_at ? new Date(tournament.starts_at).getTime() <= Date.now() : false;
   const alreadyJoined = session && participants.some((p) => p.profile_id === session.user.id);
+  const isCreator = session && tournament.created_by === session.user.id;
   const canJoin = session && !started && tournament.status === 'registration' && !alreadyJoined;
   const totalGames = stages.reduce((sum, s) => sum + s.games_per_pairing, 0);
 
@@ -230,6 +232,7 @@ export default function TournamentDetailPage() {
           />
           <Detail label="Ends" value={tournament.ends_at ? new Date(tournament.ends_at).toLocaleString() : 'TBD'} />
           <Detail label="Status" value={started ? 'Started / Closed' : 'Registration Open'} color={started ? '#ff4444' : '#29e7cd'} />
+          {tournament.entry_fee <= 0 && tournament.host_fee > 0 && <Detail label="Hosting Fee" value={`$${tournament.host_fee} (paid by host)`} />}
         </div>
 
         {/* Winning determination */}
@@ -240,6 +243,11 @@ export default function TournamentDetailPage() {
 
         {/* Join action */}
         <div style={{ marginBottom: 24 }}>
+          {isCreator && !alreadyJoined && (
+            <div style={{ padding: 12, marginBottom: 10, textAlign: 'center', background: 'rgba(212,175,55,0.08)', border: '1px solid var(--gold)', borderRadius: 6, color: 'var(--gold)', fontSize: 13 }}>
+              👑 You're hosting this tournament. You can watch progress here without registering, or register below to compete too.
+            </div>
+          )}
           {alreadyJoined ? (
             <div style={{ padding: 12, textAlign: 'center', background: 'rgba(41,231,205,0.1)', border: '1px solid #29e7cd', borderRadius: 6, color: '#29e7cd', fontSize: 13, fontWeight: 700 }}>
               ✅ You're registered for this tournament
