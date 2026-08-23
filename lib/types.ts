@@ -1,3 +1,14 @@
+export interface JoinRequest {
+  id: string;
+  kind: 'duel' | 'league' | 'tournament';
+  entity_id: string;
+  profile_id: string;
+  creator_id: string;
+  status: 'pending' | 'approved' | 'declined';
+  created_at: string;
+  decided_at: string | null;
+}
+
 export interface Player {
   id: string;
   username: string;
@@ -80,12 +91,12 @@ export interface Duel {
   scheduled_at: string | null;
   ends_at: string | null;
   image_url: string | null;
+  join_mode?: 'open' | 'approval';
   share_code: string;
   created_at: string;
   proposed_winner_id: string | null;
   proposed_by: string | null;
   proposed_at: string | null;
-  join_mode: 'open' | 'approval';
   player1?: Profile;
   player2?: Profile;
 }
@@ -108,12 +119,13 @@ export interface Tournament {
   prize_pool: number;
   payout_places: 1 | 2 | 3;
   host_fee?: number;
-  join_mode: 'open' | 'approval';
+  max_players?: number | null;
   status: 'registration' | 'active' | 'completed' | 'cancelled';
   current_stage: number;
   starts_at: string | null;
   ends_at: string | null;
   image_url: string | null;
+  join_mode?: 'open' | 'approval';
   share_code: string;
   created_at: string;
   game_title?: string;
@@ -164,10 +176,10 @@ export interface League {
   max_players?: number | null;
   rounds_per_opponent?: number | null;
   host_fee?: number;
-  join_mode: 'open' | 'approval';
   starts_at: string | null;
   ends_at: string | null;
   image_url: string | null;
+  join_mode?: 'open' | 'approval';
   share_code: string;
   created_at: string;
   game_title?: string;

@@ -25,7 +25,7 @@ export default function FindByCode() {
         supabase.from('account_listings').select('id').eq('share_code', trimmed).maybeSingle(),
       ]);
 
-      if (duel.data) return router.push(`/challenges/${duel.data.id}`);
+      if (duel.data) return router.push(`/duel/${duel.data.id}`);
       if (tournament.data) return router.push(`/tournaments/${tournament.data.id}`);
       if (league.data) return router.push(`/leagues/${league.data.id}`);
       if (listing.data) return router.push(`/markets/listing/${listing.data.id}`);

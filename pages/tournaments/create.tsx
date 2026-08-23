@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { uploadEventImage } from '../../lib/storage';
+import ShareInvite from '../../components/ShareInvite';
 
 interface Game {
   id: string;
@@ -14,7 +15,7 @@ export default function CreateTournament() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ id: string; share_code: string } | null>(null);
 
   const [gameId, setGameId] = useState('');
   const [name, setName] = useState('');
@@ -23,11 +24,13 @@ export default function CreateTournament() {
   const [freeToJoin, setFreeToJoin] = useState(true);
   const [entryFee, setEntryFee] = useState('0');
   const [hostFee, setHostFee] = useState('50');
-  const [joinMode, setJoinMode] = useState<'open' | 'approval'>('open');
+  const [maxPlayers, setMaxPlayers] = useState('50');
   const [prizePool, setPrizePool] = useState('0');
   const [payoutPlaces, setPayoutPlaces] = useState<'1' | '2' | '3'>('1');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  const [joinMode, setJoinMode] = useState<'open' | 'approval'>('open');
+  const [creatorPlays, setCreatorPlays] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
@@ -117,11 +120,13 @@ export default function CreateTournament() {
         p_ends_at: endsIso,
         p_image_url: imageUrl,
         p_host_fee: freeToJoin ? hFee : 0,
+        p_max_players: parseInt(maxPlayers, 10) || 50,
         p_join_mode: joinMode,
+        p_creator_plays: creatorPlays,
       });
 
       if (error) throw error;
-      setCreatedCode(data?.share_code ?? null);
+      setCreated({ id: data.id, share_code: data.share_code });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to create tournament.' });
     } finally {
@@ -135,36 +140,18 @@ export default function CreateTournament() {
     setPhotoPreview(file ? URL.createObjectURL(file) : null);
   };
 
-  if (createdCode) {
+  if (created) {
     return (
       <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
         <Head>
           <title>Tournament Created | ApexDuel</title>
         </Head>
-        <section style={{ maxWidth: 620, margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
-          <h2 className="display" style={{ fontSize: 26, marginBottom: 12, textTransform: 'uppercase' }}>
+        <section style={{ maxWidth: 520, margin: '0 auto', padding: '60px 24px', textAlign: 'center' }}>
+          <h2 className="display" style={{ fontSize: 26, marginBottom: 20, textTransform: 'uppercase' }}>
             Tournament Created!
           </h2>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
-            Share this code so others can find and join it:
-          </p>
-          <div
-            className="mono"
-            style={{
-              display: 'inline-block',
-              background: '#131627',
-              border: '1px solid var(--panel-border)',
-              padding: '16px 32px',
-              fontSize: 28,
-              letterSpacing: '0.3em',
-              borderRadius: 6,
-              color: 'var(--gold)',
-              marginBottom: 24,
-            }}
-          >
-            {createdCode}
-          </div>
-          <div>
+          <ShareInvite kind="tournament" entityId={created.id} shareCode={created.share_code} />
+          <div style={{ marginTop: 20 }}>
             <button onClick={() => router.push('/tournaments')} style={primaryButtonStyle}>
               Go to Tournaments
             </button>
@@ -247,6 +234,12 @@ export default function CreateTournament() {
           </div>
 
           <div>
+            <label style={labelStyle}>Max players (2–200)</label>
+            <input type="number" min="2" max="200" required value={maxPlayers} onChange={(e) => setMaxPlayers(e.target.value)} style={inputStyle} />
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>Once this many players have registered, the tournament is full.</p>
+          </div>
+
+          <div>
             <label style={labelStyle}>Start time</label>
             <input type="datetime-local" required value={startsAt} onChange={(e) => setStartsAt(e.target.value)} style={inputStyle} />
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>No one can register after this time.</p>
@@ -307,24 +300,37 @@ export default function CreateTournament() {
             </div>
           )}
 
-          <p style={{ fontSize: 12, color: 'var(--muted)' }}>
-            You don't have to compete in the tournament you create — you can host it and just track progress, or register as a player too if you want to compete.
-          </p>
-
           <div>
-            <label style={labelStyle}>Who can join?</label>
+            <label style={labelStyle}>Who can join</label>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" onClick={() => setJoinMode('open')} style={toggleStyle(joinMode === 'open')}>
-                Anyone Can Join
+                Free for Everyone
               </button>
               <button type="button" onClick={() => setJoinMode('approval')} style={toggleStyle(joinMode === 'approval')}>
-                I'll Approve Each Request
+                I Confirm Each Entry
               </button>
             </div>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
               {joinMode === 'open'
-                ? 'Players are registered the moment they click Join.'
-                : "Players who click Join will send a request. You'll need to approve or decline each one before they're in."}
+                ? 'Anyone who registers gets in immediately, up to the max player count.'
+                : "You'll see each registration and can approve or decline it before that player is locked in."}
+            </p>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Will you also play?</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setCreatorPlays(false)} style={toggleStyle(!creatorPlays)}>
+                Just Hosting
+              </button>
+              <button type="button" onClick={() => setCreatorPlays(true)} style={toggleStyle(creatorPlays)}>
+                I'll Play Too
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
+              {creatorPlays
+                ? "You'll be registered right away, and pay the entry fee if this tournament is paid entry."
+                : "You won't play — you'll just host and can watch the bracket as it plays out."}
             </p>
           </div>
 

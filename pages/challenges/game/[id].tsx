@@ -51,6 +51,8 @@ export default function GameChallengesPage() {
   const [leagues, setLeagues] = useState<LeagueRow[]>([]);
   const [joinedTournamentIds, setJoinedTournamentIds] = useState<Set<string>>(new Set());
   const [joinedLeagueIds, setJoinedLeagueIds] = useState<Set<string>>(new Set());
+  const [tournamentCounts, setTournamentCounts] = useState<Record<string, number>>({});
+  const [leagueCounts, setLeagueCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export default function GameChallengesPage() {
         .order('created_at', { ascending: false }),
       supabase
         .from('tournaments')
-        .select('id, name, status, entry_fee, prize_pool, starts_at')
+        .select('id, name, status, entry_fee, prize_pool, starts_at, max_players')
         .eq('game_id', gameId)
         .order('created_at', { ascending: false }),
       supabase
@@ -102,9 +104,26 @@ export default function GameChallengesPage() {
     setTournaments(tournamentData || []);
     setLeagues(leagueData || []);
 
+    const tIds = (tournamentData || []).map((t) => t.id);
+    const lIds = (leagueData || []).map((l) => l.id);
+
+    // Participant counts, to know which tournaments/leagues are already full.
+    const [{ data: allTournamentParticipants }, { data: allLeagueParticipants }] = await Promise.all([
+      tIds.length > 0 ? supabase.from('tournament_participants').select('tournament_id').in('tournament_id', tIds) : Promise.resolve({ data: [] as any[] }),
+      lIds.length > 0 ? supabase.from('league_participants').select('league_id').in('league_id', lIds) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const tCounts: Record<string, number> = {};
+    (allTournamentParticipants || []).forEach((r: any) => {
+      tCounts[r.tournament_id] = (tCounts[r.tournament_id] || 0) + 1;
+    });
+    const lCounts: Record<string, number> = {};
+    (allLeagueParticipants || []).forEach((r: any) => {
+      lCounts[r.league_id] = (lCounts[r.league_id] || 0) + 1;
+    });
+    setTournamentCounts(tCounts);
+    setLeagueCounts(lCounts);
+
     if (sess) {
-      const tIds = (tournamentData || []).map((t) => t.id);
-      const lIds = (leagueData || []).map((l) => l.id);
       const [{ data: myTournaments }, { data: myLeagues }] = await Promise.all([
         tIds.length > 0
           ? supabase.from('tournament_participants').select('tournament_id').eq('profile_id', sess.user.id).in('tournament_id', tIds)
@@ -290,7 +309,9 @@ export default function GameChallengesPage() {
           ) : (
             tournaments.map((t) => {
               const joined = joinedTournamentIds.has(t.id);
-              const canJoin = t.status === 'registration' && !joined;
+              const count = tournamentCounts[t.id] || 0;
+              const full = t.max_players != null && count >= t.max_players;
+              const canJoin = t.status === 'registration' && !joined && !full;
               return (
                 <div key={t.id} style={rowStyle}>
                   <Link href={`/tournaments/${t.id}`} style={rowInfoLinkStyle}>
@@ -299,6 +320,7 @@ export default function GameChallengesPage() {
                       {t.status} · {t.starts_at ? new Date(t.starts_at).toLocaleString() : 'Start time TBD'} ·{' '}
                       {t.entry_fee > 0 ? `$${t.entry_fee}` : 'Free'}
                       {t.prize_pool > 0 && ` · $${t.prize_pool} prize`}
+                      {t.max_players != null && ` · ${count}/${t.max_players} players`}
                     </div>
                   </Link>
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -309,7 +331,7 @@ export default function GameChallengesPage() {
                       <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Joined</span>
                     ) : (
                       <button onClick={() => handleJoinTournament(t.id)} disabled={!canJoin || busyId === t.id} style={joinBtnStyle}>
-                        {busyId === t.id ? '…' : canJoin ? 'Join' : 'Closed'}
+                        {busyId === t.id ? '…' : full ? 'Full' : canJoin ? 'Join' : 'Closed'}
                       </button>
                     )}
                   </div>
@@ -325,13 +347,15 @@ export default function GameChallengesPage() {
           ) : (
             leagues.map((l) => {
               const joined = joinedLeagueIds.has(l.id);
-              const canJoin = l.status === 'open' && !joined;
+              const count = leagueCounts[l.id] || 0;
+              const full = count >= l.max_players;
+              const canJoin = l.status === 'open' && !joined && !full;
               return (
                 <div key={l.id} style={rowStyle}>
                   <Link href={`/leagues/${l.id}`} style={rowInfoLinkStyle}>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{l.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'capitalize' }}>
-                      {l.status} · Up to {l.max_players} players · {l.entry_fee > 0 ? `$${l.entry_fee}` : 'Free'}
+                      {l.status} · {count}/{l.max_players} players · {l.entry_fee > 0 ? `$${l.entry_fee}` : 'Free'}
                     </div>
                   </Link>
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -342,7 +366,7 @@ export default function GameChallengesPage() {
                       <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Joined</span>
                     ) : (
                       <button onClick={() => handleJoinLeague(l.id)} disabled={!canJoin || busyId === l.id} style={joinBtnStyle}>
-                        {busyId === l.id ? '…' : canJoin ? 'Join' : 'Closed'}
+                        {busyId === l.id ? '…' : full ? 'Full' : canJoin ? 'Join' : 'Closed'}
                       </button>
                     )}
                   </div>

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { uploadEventImage } from '../../lib/storage';
+import ShareInvite from '../../components/ShareInvite';
 
 export default function CreateDuel() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function CreateDuel() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ id: string; share_code: string } | null>(null);
 
   const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -74,7 +75,7 @@ export default function CreateDuel() {
       });
 
       if (error) throw error;
-      setCreatedCode(data.share_code);
+      setCreated({ id: data.id, share_code: data.share_code });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to create match.' });
     } finally {
@@ -82,17 +83,14 @@ export default function CreateDuel() {
     }
   };
 
-  if (createdCode) {
+  if (created) {
     return (
       <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
         <Head><title>Match Created | ApexDuel</title></Head>
-        <section style={{ maxWidth: 620, margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
-          <h2 className="display" style={{ fontSize: 26, marginBottom: 12, textTransform: 'uppercase' }}>Match Created!</h2>
-          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>Share this code with your opponent:</p>
-          <div className="mono" style={{ display: 'inline-block', background: '#131627', border: '1px solid var(--panel-border)', padding: '16px 32px', fontSize: 28, letterSpacing: '0.3em', borderRadius: 6, color: 'var(--gold)', marginBottom: 24 }}>
-            {createdCode}
-          </div>
-          <div>
+        <section style={{ maxWidth: 520, margin: '0 auto', padding: '60px 24px', textAlign: 'center' }}>
+          <h2 className="display" style={{ fontSize: 26, marginBottom: 20, textTransform: 'uppercase' }}>Match Created!</h2>
+          <ShareInvite kind="duel" entityId={created.id} shareCode={created.share_code} />
+          <div style={{ marginTop: 20 }}>
             <button onClick={() => router.push('/duels')} style={primaryButtonStyle}>Go to Matches</button>
           </div>
         </section>
@@ -166,19 +164,19 @@ export default function CreateDuel() {
           </div>
 
           <div>
-            <label style={labelStyle}>Who can join?</label>
+            <label style={labelStyle}>Who can join</label>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" onClick={() => setJoinMode('open')} style={toggleStyle(joinMode === 'open')}>
-                Anyone Can Join
+                Free for Everyone
               </button>
               <button type="button" onClick={() => setJoinMode('approval')} style={toggleStyle(joinMode === 'approval')}>
-                I'll Approve the Request
+                I Confirm Each Entry
               </button>
             </div>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
               {joinMode === 'open'
-                ? 'The first person to click Join becomes your opponent.'
-                : "Someone who clicks Join sends a request. You'll need to approve it before they become your opponent."}
+                ? 'Anyone can join instantly — first to tap Join gets the spot.'
+                : "You'll see a request when someone wants to join, and can approve or decline it before they're locked in."}
             </p>
           </div>
 
