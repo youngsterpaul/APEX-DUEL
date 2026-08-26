@@ -3,7 +3,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { useCart, cartItemLabel, cartItemPrice, cartItemTypeLabel, CartItem } from '../lib/cartContext';
+import { useCart, cartItemLabel, cartItemPrice, cartItemTypeLabel, CartItem, CartItemType } from '../lib/cartContext';
+
+const DETAIL_PATH: Record<CartItemType, (id: string) => string> = {
+  listing: (id) => `/markets/listing/${id}`,
+  tournament: (id) => `/tournaments/${id}`,
+  league: (id) => `/leagues/${id}`,
+  duel: (id) => `/duel/${id}`,
+  challenge: () => `/challenges`,
+};
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -122,7 +130,12 @@ export default function CheckoutPage() {
                       <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         {cartItemTypeLabel(item.item_type)}
                       </span>
-                      <h3 style={{ fontSize: 16, fontWeight: 800, margin: '4px 0' }}>{cartItemLabel(item)}</h3>
+                      <Link
+                        href={DETAIL_PATH[item.item_type](item.item_id)}
+                        style={{ display: 'block', textDecoration: 'none' }}
+                      >
+                        <h3 style={{ fontSize: 16, fontWeight: 800, margin: '4px 0', color: '#fff' }}>{cartItemLabel(item)}</h3>
+                      </Link>
                       {startsAt && (
                         <p style={{ fontSize: 12, color: started ? '#ff4444' : 'var(--muted)' }}>
                           {started ? 'Already started — can no longer be joined' : `Starts ${new Date(startsAt).toLocaleString()}`}

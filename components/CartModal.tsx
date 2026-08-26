@@ -1,16 +1,31 @@
 import Link from 'next/link';
-import { useCart, cartItemLabel, cartItemPrice, cartItemTypeLabel } from '../lib/cartContext';
+import { useRouter } from 'next/router';
+import { useCart, cartItemLabel, cartItemPrice, cartItemTypeLabel, CartItem, CartItemType } from '../lib/cartContext';
 
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const DETAIL_PATH: Record<CartItemType, (id: string) => string> = {
+  listing: (id) => `/markets/listing/${id}`,
+  tournament: (id) => `/tournaments/${id}`,
+  league: (id) => `/leagues/${id}`,
+  duel: (id) => `/duel/${id}`,
+  challenge: () => `/challenges`,
+};
+
 export default function CartModal({ isOpen, onClose }: CartModalProps) {
   const { items, loading, removeFromCart } = useCart();
+  const router = useRouter();
   if (!isOpen) return null;
 
   const total = items.reduce((sum, i) => sum + cartItemPrice(i), 0);
+
+  const goToItem = (item: CartItem) => {
+    onClose();
+    router.push(DETAIL_PATH[item.item_type](item.item_id));
+  };
 
   return (
     <div
@@ -68,6 +83,12 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
               return (
                 <div
                   key={`${item.item_type}:${item.item_id}`}
+                  onClick={() => goToItem(item)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') goToItem(item);
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -76,6 +97,7 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                     border: '1px solid var(--panel-border)',
                     borderRadius: 8,
                     padding: 12,
+                    cursor: 'pointer',
                   }}
                 >
                   {isListing ? (
@@ -119,7 +141,10 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
                     {free ? 'FREE' : `$${price.toFixed(2)}`}
                   </span>
                   <button
-                    onClick={() => removeFromCart(item.item_id, item.item_type)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromCart(item.item_id, item.item_type);
+                    }}
                     aria-label="Remove from cart"
                     style={{
                       background: 'transparent',
