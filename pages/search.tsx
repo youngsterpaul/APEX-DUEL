@@ -25,9 +25,10 @@ export default function SearchByCode() {
 
   const kindLabel: Record<CodeMatch['kind'], string> = {
     listing: 'Account for sale',
-    duel: '1v1 Match',
+    challenge: '1v1 / Challenge',
     tournament: 'Tournament',
     league: 'League',
+    duel: '1v1 Match',
   };
 
   return (

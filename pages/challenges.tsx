@@ -5,7 +5,6 @@ import { supabase } from '../lib/supabaseClient';
 import SkeletonGrid from '../components/SkeletonGrid';
 import Pagination from '../components/Pagination';
 import { useCart } from '../lib/cartContext';
-import FindByCode from '../components/FindByCode';
 
 interface Game {
   id: string;
@@ -123,13 +122,6 @@ export default function Challenges() {
         >
           <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create Challenge</span>
         </Link>
-      </section>
-
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 24px' }}>
-        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Have a share code?
-        </p>
-        <FindByCode />
       </section>
 
       {/* Available games grid */}
@@ -258,7 +250,7 @@ export default function Challenges() {
                       {isInCart(c.id, 'challenge') ? 'In Cart' : 'Add to Cart'}
                     </button>
                     <Link
-                      href={`/duels/${c.id}`}
+                      href={`/challenges/${c.id}`}
                       style={{
                         border: '1px solid var(--red)',
                         color: 'var(--red)',
@@ -270,7 +262,7 @@ export default function Challenges() {
                         textDecoration: 'none',
                       }}
                     >
-                      Join Room
+                      View / Join
                     </Link>
                   </div>
                 </div>

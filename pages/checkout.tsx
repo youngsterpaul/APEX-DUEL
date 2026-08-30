@@ -10,7 +10,7 @@ const DETAIL_PATH: Record<CartItemType, (id: string) => string> = {
   tournament: (id) => `/tournaments/${id}`,
   league: (id) => `/leagues/${id}`,
   duel: (id) => `/duel/${id}`,
-  challenge: () => `/challenges`,
+  challenge: (id) => `/challenges/${id}`,
 };
 
 export default function CheckoutPage() {
@@ -42,13 +42,28 @@ export default function CheckoutPage() {
     router.push(`/transfer/${data.id}`);
   };
 
-  // Tournament / league / duel: checkout means "join" — pays the entry fee (if any) right now.
+  // Tournament / league / duel / challenge: checkout means "join" — pays the entry fee (if any) right now,
+  // or sends a join request if the host requires approval.
   const checkoutJoin = async (item: CartItem) => {
     setBusyKey(keyFor(item));
     setResult(item, undefined);
 
-    const rpcName = item.item_type === 'tournament' ? 'register_for_tournament' : item.item_type === 'league' ? 'join_league' : 'join_duel';
-    const paramName = item.item_type === 'tournament' ? 'p_tournament_id' : item.item_type === 'league' ? 'p_league_id' : 'p_duel_id';
+    const rpcName =
+      item.item_type === 'tournament'
+        ? 'register_for_tournament'
+        : item.item_type === 'league'
+        ? 'join_league'
+        : item.item_type === 'challenge'
+        ? 'join_challenge'
+        : 'join_duel';
+    const paramName =
+      item.item_type === 'tournament'
+        ? 'p_tournament_id'
+        : item.item_type === 'league'
+        ? 'p_league_id'
+        : item.item_type === 'challenge'
+        ? 'p_challenge_id'
+        : 'p_duel_id';
 
     const { error } = await supabase.rpc(rpcName, { [paramName]: item.item_id });
     setBusyKey(null);
@@ -62,6 +77,12 @@ export default function CheckoutPage() {
 
     if (item.item_type === 'duel') {
       router.push(`/duel/${item.item_id}`);
+      return;
+    }
+
+    if (item.item_type === 'challenge') {
+      setResult(item, { type: 'success', text: "You're in! Redirecting…" });
+      setTimeout(() => router.push(`/challenges/${item.item_id}`), 1200);
       return;
     }
 
@@ -92,7 +113,7 @@ export default function CheckoutPage() {
           Checkout
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 24 }}>
-          Each item checks out on its own — accounts start an escrowed transfer, tournaments/leagues/matches charge the entry fee and add you as a participant right away.
+          Each item checks out on its own — accounts start an escrowed transfer, tournaments/leagues/matches/challenges charge the entry fee and add you as a participant right away.
         </p>
 
         {loading ? (
@@ -113,7 +134,6 @@ export default function CheckoutPage() {
               const d = item.details as any;
               const startsAt = item.item_type === 'tournament' || item.item_type === 'league' ? d?.starts_at : item.item_type === 'duel' ? d?.scheduled_at : null;
               const started = startsAt ? new Date(startsAt).getTime() <= Date.now() : false;
-              const unsupported = item.item_type === 'challenge';
 
               return (
                 <div
@@ -130,10 +150,7 @@ export default function CheckoutPage() {
                       <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         {cartItemTypeLabel(item.item_type)}
                       </span>
-                      <Link
-                        href={DETAIL_PATH[item.item_type](item.item_id)}
-                        style={{ display: 'block', textDecoration: 'none' }}
-                      >
+                      <Link href={DETAIL_PATH[item.item_type](item.item_id)} style={{ display: 'block', textDecoration: 'none' }}>
                         <h3 style={{ fontSize: 16, fontWeight: 800, margin: '4px 0', color: '#fff' }}>{cartItemLabel(item)}</h3>
                       </Link>
                       {startsAt && (
@@ -164,41 +181,37 @@ export default function CheckoutPage() {
                   )}
 
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    {unsupported ? (
-                      <div style={{ flex: 1, fontSize: 12, color: 'var(--muted)', padding: '10px 0' }}>
-                        Head to the <Link href="/challenges" style={{ color: 'var(--red)' }}>Challenges page</Link> to join this lobby directly.
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => (item.item_type === 'listing' ? checkoutListing(item) : checkoutJoin(item))}
-                        disabled={busy || started}
-                        style={{
-                          flex: 1,
-                          background: started ? '#2a2d3a' : 'var(--red)',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 4,
-                          padding: '11px',
-                          fontWeight: 700,
-                          fontSize: 13,
-                          textTransform: 'uppercase',
-                          cursor: busy || started ? 'default' : 'pointer',
-                          opacity: busy ? 0.7 : 1,
-                        }}
-                      >
-                        {busy
-                          ? 'Processing…'
-                          : started
-                          ? 'Started'
-                          : item.item_type === 'listing'
-                          ? 'Start Transfer'
-                          : item.item_type === 'tournament'
-                          ? 'Join Tournament'
-                          : item.item_type === 'league'
-                          ? 'Join League'
-                          : 'Join Match'}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => (item.item_type === 'listing' ? checkoutListing(item) : checkoutJoin(item))}
+                      disabled={busy || started}
+                      style={{
+                        flex: 1,
+                        background: started ? '#2a2d3a' : 'var(--red)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 4,
+                        padding: '11px',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        textTransform: 'uppercase',
+                        cursor: busy || started ? 'default' : 'pointer',
+                        opacity: busy ? 0.7 : 1,
+                      }}
+                    >
+                      {busy
+                        ? 'Processing…'
+                        : started
+                        ? 'Started'
+                        : item.item_type === 'listing'
+                        ? 'Start Transfer'
+                        : item.item_type === 'tournament'
+                        ? 'Join Tournament'
+                        : item.item_type === 'league'
+                        ? 'Join League'
+                        : item.item_type === 'challenge'
+                        ? 'Join Challenge'
+                        : 'Join Match'}
+                    </button>
                     <button
                       onClick={() => removeFromCart(item.item_id, item.item_type)}
                       disabled={busy}

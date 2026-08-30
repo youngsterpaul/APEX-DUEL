@@ -12,7 +12,7 @@ const DETAIL_PATH: Record<CartItemType, (id: string) => string> = {
   tournament: (id) => `/tournaments/${id}`,
   league: (id) => `/leagues/${id}`,
   duel: (id) => `/duel/${id}`,
-  challenge: () => `/challenges`,
+  challenge: (id) => `/challenges/${id}`,
 };
 
 export default function CartModal({ isOpen, onClose }: CartModalProps) {
