@@ -3,17 +3,15 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
-type Method = 'mpesa' | 'crypto' | 'googlepay';
+type Method = 'mpesa' | 'googlepay';
 
 const DESTINATION_LABEL: Record<Method, string> = {
   mpesa: 'M-Pesa Phone Number',
-  crypto: 'Crypto Wallet Address',
   googlepay: 'Google Pay Email',
 };
 
 const DESTINATION_PLACEHOLDER: Record<Method, string> = {
   mpesa: '07XXXXXXXX',
-  crypto: '0x… or your wallet address',
   googlepay: 'you@email.com',
 };
 
@@ -111,7 +109,6 @@ export default function Withdraw() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
           {[
             { key: 'mpesa', label: 'M-Pesa' },
-            { key: 'crypto', label: 'Crypto' },
             { key: 'googlepay', label: 'Google Pay' },
           ].map((m) => (
             <button

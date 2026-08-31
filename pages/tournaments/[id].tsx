@@ -38,6 +38,17 @@ interface Participant {
   final_placement: number | null;
 }
 
+interface TournamentMatch {
+  id: string;
+  stage_number: number;
+  player_a: string;
+  player_b: string | null;
+  reported_a: string | null;
+  reported_b: string | null;
+  winner: string | null;
+  status: string;
+}
+
 export default function TournamentDetailPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -47,11 +58,14 @@ export default function TournamentDetailPage() {
   const [gameTitle, setGameTitle] = useState('');
   const [stages, setStages] = useState<Stage[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [reportPoints, setReportPoints] = useState<Record<string, string>>({});
+  const [reportingId, setReportingId] = useState<string | null>(null);
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -78,7 +92,7 @@ export default function TournamentDetailPage() {
     }
     setTournament(tData as TournamentRow);
 
-    const [{ data: gameData }, { data: stageData }, { data: participantData }] = await Promise.all([
+    const [{ data: gameData }, { data: stageData }, { data: participantData }, { data: matchData }] = await Promise.all([
       supabase.from('games').select('title').eq('id', tData.game_id).maybeSingle(),
       supabase.from('tournament_stages').select('stage_number, name, games_per_pairing').eq('tournament_id', tournamentId).order('stage_number'),
       supabase
@@ -86,12 +100,56 @@ export default function TournamentDetailPage() {
         .select('profile_id, username, wins, points, eliminated, final_placement')
         .eq('tournament_id', tournamentId)
         .order('points', { ascending: false }),
+      supabase
+        .from('tournament_matches')
+        .select('id, stage_number, player_a, player_b, reported_a, reported_b, winner, status')
+        .eq('tournament_id', tournamentId)
+        .order('stage_number', { ascending: false }),
     ]);
 
     setGameTitle(gameData?.title || '');
     setStages(stageData || []);
     setParticipants(participantData || []);
+    setMatches(matchData || []);
     setLoading(false);
+  };
+
+  const handleStart = async () => {
+    if (typeof id !== 'string') return;
+    setBusy(true);
+    setMessage(null);
+    const { error } = await supabase.rpc('start_tournament', { p_tournament_id: id });
+    setBusy(false);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    setMessage({ type: 'success', text: 'Tournament started! Matches have been paired.' });
+    fetchAll(id);
+  };
+
+  const handleReport = async (matchId: string, iWon: boolean) => {
+    if (typeof id !== 'string' || !session) return;
+    const match = matches.find((m) => m.id === matchId);
+    if (!match || !match.player_b) return;
+    const opponentId = match.player_a === session.user.id ? match.player_b : match.player_a;
+    const claimedWinner = iWon ? session.user.id : opponentId;
+    const points = tournament?.format === 'round_robin' ? parseFloat(reportPoints[matchId] || '0') || 0 : 0;
+
+    setReportingId(matchId);
+    setMessage(null);
+    const { error } = await supabase.rpc('report_tournament_match', {
+      p_match_id: matchId,
+      p_claimed_winner: claimedWinner,
+      p_my_points: points,
+    });
+    setReportingId(null);
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+    setMessage({ type: 'success', text: 'Result submitted. Once your opponent confirms, it settles automatically.' });
+    fetchAll(id);
   };
 
   const handleJoin = async () => {
@@ -127,6 +185,9 @@ export default function TournamentDetailPage() {
   const full = tournament.max_players != null && participants.length >= tournament.max_players;
   const canJoin = session && !started && tournament.status === 'registration' && !alreadyJoined && !full;
   const totalGames = stages.reduce((sum, s) => sum + s.games_per_pairing, 0);
+  const usernameOf = (pid: string | null) => (pid ? participants.find((p) => p.profile_id === pid)?.username || 'Player' : 'TBD');
+  const myMatches = session ? matches.filter((m) => m.player_a === session.user.id || m.player_b === session.user.id) : [];
+  const canStart = isCreator && tournament.status === 'registration' && participants.length >= 2;
 
   const winningExplainer =
     tournament.format === 'round_robin'
@@ -254,6 +315,11 @@ export default function TournamentDetailPage() {
               👑 You're hosting this tournament. You can watch progress here without registering, or register below to compete too.
             </div>
           )}
+          {canStart && (
+            <button onClick={handleStart} disabled={busy} style={{ ...primaryBtnStyle, width: '100%', marginBottom: 10, background: 'var(--gold)', color: '#0a0b14' }}>
+              {busy ? 'Starting…' : `Start Tournament Now (${participants.length} players)`}
+            </button>
+          )}
           {alreadyJoined ? (
             <div style={{ padding: 12, textAlign: 'center', background: 'rgba(41,231,205,0.1)', border: '1px solid #29e7cd', borderRadius: 6, color: '#29e7cd', fontSize: 13, fontWeight: 700 }}>
               ✅ You're registered for this tournament
@@ -276,6 +342,67 @@ export default function TournamentDetailPage() {
             </button>
           )}
         </div>
+
+        {/* Your matches — visible as soon as you're paired, no need to wait for the start time */}
+        {myMatches.length > 0 && (
+          <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <p style={{ fontSize: 11, color: 'var(--red)', textTransform: 'uppercase', marginBottom: 10, fontWeight: 700 }}>
+              Your Matches ({myMatches.length})
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {myMatches.map((m) => {
+                const iAmA = session && m.player_a === session.user.id;
+                const opponentId = iAmA ? m.player_b : m.player_a;
+                const iReported = iAmA ? m.reported_a : m.reported_b;
+                return (
+                  <div key={m.id} style={{ border: '1px solid var(--panel-border)', borderRadius: 6, padding: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: m.status === 'pending' && !iReported ? 10 : 0 }}>
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 700 }}>
+                          {m.status === 'bye' ? 'Bye — automatic advance' : `vs ${usernameOf(opponentId)}`}
+                        </span>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>Stage {m.stage_number}</div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          color: m.status === 'completed' ? '#29e7cd' : m.status === 'disputed' ? '#ff4444' : 'var(--muted)',
+                        }}
+                      >
+                        {m.status === 'completed' ? (m.winner === session?.user.id ? 'You won' : 'You lost') : m.status}
+                      </span>
+                    </div>
+
+                    {m.status === 'pending' && m.player_b && !iReported && (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {tournament.format === 'round_robin' && (
+                          <input
+                            type="number"
+                            placeholder="Your points"
+                            value={reportPoints[m.id] || ''}
+                            onChange={(e) => setReportPoints({ ...reportPoints, [m.id]: e.target.value })}
+                            style={{ ...inputSmallStyle, width: 90 }}
+                          />
+                        )}
+                        <button onClick={() => handleReport(m.id, true)} disabled={reportingId === m.id} style={reportBtnStyle('#29e7cd')}>
+                          I won
+                        </button>
+                        <button onClick={() => handleReport(m.id, false)} disabled={reportingId === m.id} style={reportBtnStyle('#ff4444')}>
+                          I lost
+                        </button>
+                      </div>
+                    )}
+                    {m.status === 'pending' && iReported && (
+                      <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Waiting on your opponent to confirm…</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Participants */}
         <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16 }}>
@@ -324,3 +451,26 @@ const primaryBtnStyle: React.CSSProperties = {
   textTransform: 'uppercase',
   cursor: 'pointer',
 };
+
+const inputSmallStyle: React.CSSProperties = {
+  padding: '8px 10px',
+  background: '#0a0b14',
+  border: '1px solid var(--panel-border)',
+  color: '#fff',
+  borderRadius: 4,
+  fontSize: 13,
+};
+
+const reportBtnStyle = (color: string): React.CSSProperties => ({
+  flex: 1,
+  minWidth: 90,
+  background: 'transparent',
+  border: `1px solid ${color}`,
+  color,
+  padding: '9px 12px',
+  borderRadius: 4,
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  cursor: 'pointer',
+});

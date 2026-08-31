@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
-type Method = 'mpesa' | 'crypto' | 'googlepay';
+type Method = 'mpesa' | 'googlepay';
 type MpesaMode = 'stk' | 'paybill';
 
 export default function Deposit() {
@@ -147,7 +147,6 @@ export default function Deposit() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
           {[
             { key: 'mpesa', label: 'M-Pesa' },
-            { key: 'crypto', label: 'Crypto' },
             { key: 'googlepay', label: 'Google Pay' },
           ].map((m) => (
             <button
@@ -171,11 +170,6 @@ export default function Deposit() {
           ))}
         </div>
 
-        {method === 'crypto' && (
-          <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0' }}>
-            Crypto deposits are coming soon.
-          </div>
-        )}
         {method === 'googlepay' && (
           <div style={{ color: 'var(--muted)', fontSize: 14, padding: '20px 0' }}>
             Google Pay deposits are coming soon.
