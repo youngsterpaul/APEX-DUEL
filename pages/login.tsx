@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -21,8 +21,18 @@ export default function LoginPage() {
     e.preventDefault();
     setMessage(null);
     setBusy(true);
+
     try {
-      if (mode === 'signup') {
+      if (mode === 'reset') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        setMessage({ type: 'success', text: 'Password reset link sent! Check your email inbox.' });
+      } else if (mode === 'signup') {
+        if (!country) {
+          throw new Error('Please select your country.');
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -30,7 +40,7 @@ export default function LoginPage() {
             data: {
               username,
               gender,
-              country: country || null,
+              country,
               whatsapp_username: whatsappUsername || null,
               whatsapp_phone: whatsappPhone || null,
               discord_username: discordUsername || null,
@@ -55,7 +65,9 @@ export default function LoginPage() {
   return (
     <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
       <Head>
-        <title>{mode === 'signup' ? 'Sign Up' : 'Sign In'} | ApexDuel</title>
+        <title>
+          {mode === 'signup' ? 'Sign Up' : mode === 'reset' ? 'Reset Password' : 'Sign In'} | ApexDuel
+        </title>
       </Head>
 
       <section style={{ maxWidth: 420, margin: '0 auto', padding: '60px 20px' }}>
@@ -63,18 +75,24 @@ export default function LoginPage() {
           APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
         </h1>
         <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 13, marginBottom: 28 }}>
-          {mode === 'signup' ? 'Create your account' : 'Welcome back'}
+          {mode === 'signup'
+            ? 'Create your account'
+            : mode === 'reset'
+            ? 'Reset your account password'
+            : 'Welcome back'}
         </p>
 
         <div style={{ display: 'flex', marginBottom: 20, border: '1px solid var(--panel-border)', borderRadius: 6, overflow: 'hidden' }}>
           <button
-            onClick={() => setMode('signin')}
+            type="button"
+            onClick={() => { setMode('signin'); setMessage(null); }}
             style={{ flex: 1, padding: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', background: mode === 'signin' ? 'var(--red)' : 'transparent', color: '#fff' }}
           >
             Sign In
           </button>
           <button
-            onClick={() => setMode('signup')}
+            type="button"
+            onClick={() => { setMode('signup'); setMessage(null); }}
             style={{ flex: 1, padding: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', background: mode === 'signup' ? 'var(--red)' : 'transparent', color: '#fff' }}
           >
             Sign Up
@@ -111,8 +129,8 @@ export default function LoginPage() {
                 <option value="other">Other</option>
               </select>
 
-              <label style={labelStyle}>Country <span style={optionalTag}>optional</span></label>
-              <select value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
+              <label style={labelStyle}>Country</label>
+              <select required value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
                 <option value="">Select your country</option>
                 {COUNTRY_LIST.map((c) => (
                   <option key={c} value={c} style={{ background: '#131627', color: '#fff' }}>
@@ -135,12 +153,37 @@ export default function LoginPage() {
           <label style={labelStyle}>Email</label>
           <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} placeholder="you@email.com" />
 
-          <label style={labelStyle}>Password</label>
-          <input required type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
+          {mode !== 'reset' && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 6 }}>
+                <label style={{ ...labelStyle, marginTop: 0, marginBottom: 0 }}>Password</label>
+                {mode === 'signin' && (
+                  <button
+                    type="button"
+                    onClick={() => { setMode('reset'); setMessage(null); }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--red)', fontSize: 11, cursor: 'pointer', textTransform: 'uppercase', fontWeight: 600, padding: 0 }}
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
+              <input required type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
+            </>
+          )}
 
           <button type="submit" disabled={busy} style={primaryButtonStyle}>
-            {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+            {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : mode === 'reset' ? 'Send Reset Link' : 'Sign in'}
           </button>
+
+          {mode === 'reset' && (
+            <button
+              type="button"
+              onClick={() => { setMode('signin'); setMessage(null); }}
+              style={{ ...secondaryButtonStyle, width: '100%', marginTop: 10 }}
+            >
+              Back to Sign In
+            </button>
+          )}
         </form>
       </section>
     </div>
@@ -187,6 +230,19 @@ const primaryButtonStyle: React.CSSProperties = {
   letterSpacing: '0.05em',
   borderRadius: 4,
   marginTop: 20,
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  background: 'transparent',
+  color: '#fff',
+  border: '1px solid var(--panel-border)',
+  padding: '10px',
+  fontWeight: 700,
+  cursor: 'pointer',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  borderRadius: 4,
+  fontSize: 12,
 };
 
 const COUNTRY_LIST = [
