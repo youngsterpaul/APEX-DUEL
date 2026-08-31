@@ -48,12 +48,23 @@ export default function LoginPage() {
         if (error) throw error;
         setMessage({ type: 'success', text: 'Password reset link sent! Check your email inbox.' });
       } else if (mode === 'signup') {
+        // Check if username already exists in database (case-insensitive)
+        const { data: existingUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .ilike('username', username.trim())
+          .maybeSingle();
+
+        if (existingUser) {
+          throw new Error('This username is already taken. Please choose another one.');
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              username,
+              username: username.trim(),
               gender,
               country,
               whatsapp_username: whatsappUsername || null,
