@@ -8,6 +8,12 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // Password Visibility States
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [username, setUsername] = useState('');
   const [gender, setGender] = useState('');
   const [country, setCountry] = useState('');
@@ -20,6 +26,18 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+
+    if (mode === 'signup') {
+      if (!country) {
+        setMessage({ type: 'error', text: 'Please select your country.' });
+        return;
+      }
+      if (password !== confirmPassword) {
+        setMessage({ type: 'error', text: 'Passwords do not match. Please make sure both passwords are identical.' });
+        return;
+      }
+    }
+
     setBusy(true);
 
     try {
@@ -30,9 +48,6 @@ export default function LoginPage() {
         if (error) throw error;
         setMessage({ type: 'success', text: 'Password reset link sent! Check your email inbox.' });
       } else if (mode === 'signup') {
-        if (!country) {
-          throw new Error('Please select your country.');
-        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -50,6 +65,8 @@ export default function LoginPage() {
         if (error) throw error;
         setMessage({ type: 'success', text: 'Account created! Check your email to confirm, then sign in.' });
         setMode('signin');
+        setPassword('');
+        setConfirmPassword('');
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -167,7 +184,48 @@ export default function LoginPage() {
                   </button>
                 )}
               </div>
-              <input required type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
+              <div style={{ position: 'relative' }}>
+                <input
+                  required
+                  type={showPassword ? 'text' : 'password'}
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ ...inputStyle, paddingRight: 40 }}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={togglePasswordButtonStyle}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
+
+              {mode === 'signup' && (
+                <>
+                  <label style={labelStyle}>Confirm Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      required
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      minLength={6}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      style={{ ...inputStyle, paddingRight: 40 }}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={togglePasswordButtonStyle}
+                    >
+                      {showConfirmPassword ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           )}
 
@@ -216,6 +274,19 @@ const inputStyle: React.CSSProperties = {
   color: '#fff',
   borderRadius: 4,
   fontSize: 14,
+  boxSizing: 'border-box',
+};
+
+const togglePasswordButtonStyle: React.CSSProperties = {
+  position: 'absolute',
+  right: 10,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: 14,
+  padding: 0,
 };
 
 const primaryButtonStyle: React.CSSProperties = {
