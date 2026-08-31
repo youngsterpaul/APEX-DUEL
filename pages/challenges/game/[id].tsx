@@ -58,6 +58,11 @@ export default function GameChallengesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // New states for Code Join & Sharing
+  const [inputCode, setInputCode] = useState('');
+  const [joiningByCode, setJoiningByCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
   }, []);
@@ -80,7 +85,6 @@ export default function GameChallengesPage() {
       data: { session: sess },
     } = await supabase.auth.getSession();
 
-    // Duels store the game as free text (not a game_id foreign key), so match by title.
     const [{ data: duelData }, { data: tournamentData }, { data: leagueData }] = await Promise.all([
       supabase
         .from('duels')
@@ -107,7 +111,6 @@ export default function GameChallengesPage() {
     const tIds = (tournamentData || []).map((t) => t.id);
     const lIds = (leagueData || []).map((l) => l.id);
 
-    // Participant counts, to know which tournaments/leagues are already full.
     const [{ data: allTournamentParticipants }, { data: allLeagueParticipants }] = await Promise.all([
       tIds.length > 0 ? supabase.from('tournament_participants').select('tournament_id').in('tournament_id', tIds) : Promise.resolve({ data: [] as any[] }),
       lIds.length > 0 ? supabase.from('league_participants').select('league_id').in('league_id', lIds) : Promise.resolve({ data: [] as any[] }),
@@ -157,6 +160,57 @@ export default function GameChallengesPage() {
       return;
     }
     router.push(`/duel/${duelId}`);
+  };
+
+  const handleJoinByCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session) return requireLogin();
+    const cleanedCode = inputCode.trim().toUpperCase();
+    if (!cleanedCode) {
+      setMessage({ type: 'error', text: 'Please enter a valid match code.' });
+      return;
+    }
+
+    setJoiningByCode(true);
+    setMessage(null);
+
+    // Fetch duel by share code
+    const { data: duelData, error } = await supabase
+      .from('duels')
+      .select('id, player1_id')
+      .eq('share_code', cleanedCode)
+      .maybeSingle();
+
+    if (error || !duelData) {
+      setJoiningByCode(false);
+      setMessage({ type: 'error', text: 'Match code not found or invalid.' });
+      return;
+    }
+
+    if (duelData.player1_id === session.user.id) {
+      setJoiningByCode(false);
+      router.push(`/duel/${duelData.id}`);
+      return;
+    }
+
+    // Join match via RPC
+    const { error: joinErr } = await supabase.rpc('join_duel', { p_duel_id: duelData.id });
+    setJoiningByCode(false);
+
+    if (joinErr) {
+      setMessage({ type: 'error', text: joinErr.message });
+      return;
+    }
+
+    router.push(`/duel/${duelData.id}`);
+  };
+
+  const handleCopyLink = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 3000);
+    }
   };
 
   const handleJoinTournament = async (tournamentId: string) => {
@@ -270,6 +324,73 @@ export default function GameChallengesPage() {
             {message.text}
           </div>
         )}
+
+        {/* Quick Join Code & Share Link Section */}
+        <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 20 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'space-between', alignItems: 'center' }}>
+            
+            {/* Enter Code Box */}
+            <form onSubmit={handleJoinByCode} style={{ display: 'flex', gap: 10, flex: 1, minWidth: 260 }}>
+              <input
+                type="text"
+                placeholder="Enter Match Code (e.g. X7K29P)"
+                value={inputCode}
+                onChange={(e) => setInputCode(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: '#0a0b14',
+                  border: '1px solid var(--panel-border)',
+                  color: '#fff',
+                  padding: '10px 14px',
+                  borderRadius: 4,
+                  fontSize: 13,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              />
+              <button
+                type="submit"
+                disabled={joiningByCode}
+                style={{
+                  background: 'var(--red)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '10px 18px',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  textTransform: 'uppercase',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {joiningByCode ? 'Joining…' : 'Join Match'}
+              </button>
+            </form>
+
+            {/* Share Link Button */}
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              style={{
+                background: copiedLink ? '#00ff64' : 'transparent',
+                color: copiedLink ? '#000' : '#fff',
+                border: `1px solid ${copiedLink ? '#00ff64' : 'var(--panel-border)'}`,
+                padding: '10px 18px',
+                fontWeight: 700,
+                fontSize: 12,
+                textTransform: 'uppercase',
+                borderRadius: 4,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {copiedLink ? '✓ Link Copied!' : '🔗 Share Page Link'}
+            </button>
+
+          </div>
+        </div>
 
         <GameSection title="1v1 Duels">
           {duels.length === 0 ? (
