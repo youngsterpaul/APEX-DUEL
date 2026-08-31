@@ -70,7 +70,7 @@ export default function TermsAndConditions() {
 
           {/* Main Terms Document */}
           <main className="lg:col-span-3 space-y-8">
-            {/* Hero / Document Header */}
+            {/* Hero Header */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 relative overflow-hidden">
               <div className="inline-flex items-center space-x-2 text-indigo-400 text-xs font-semibold uppercase tracking-widest mb-3 bg-indigo-500/10 px-3 py-1 rounded-md border border-indigo-500/20">
                 Legal Binding Terms
@@ -79,7 +79,7 @@ export default function TermsAndConditions() {
                 Terms of Service & Competitive Rules
               </h1>
               <p className="mt-3 text-slate-400 text-sm sm:text-base leading-relaxed">
-                Please read these terms carefully before participating in any 1v1 matches, tournaments, or leagues hosted on our platform.
+                Please read these terms carefully before participating in any 1v1 matches, tournaments, or leagues hosted on APEX DUEL.
               </p>
             </div>
 
