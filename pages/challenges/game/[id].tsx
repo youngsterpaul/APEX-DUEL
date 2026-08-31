@@ -58,10 +58,10 @@ export default function GameChallengesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // New states for Code Join & Sharing
+  // States for Code Input and Active Copied Items Feedback
   const [inputCode, setInputCode] = useState('');
   const [joiningByCode, setJoiningByCode] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -174,7 +174,6 @@ export default function GameChallengesPage() {
     setJoiningByCode(true);
     setMessage(null);
 
-    // Fetch duel by share code
     const { data: duelData, error } = await supabase
       .from('duels')
       .select('id, player1_id')
@@ -193,7 +192,6 @@ export default function GameChallengesPage() {
       return;
     }
 
-    // Join match via RPC
     const { error: joinErr } = await supabase.rpc('join_duel', { p_duel_id: duelData.id });
     setJoiningByCode(false);
 
@@ -205,11 +203,12 @@ export default function GameChallengesPage() {
     router.push(`/duel/${duelData.id}`);
   };
 
-  const handleCopyLink = () => {
+  // Helper function to copy specific match text or direct match link
+  const copyToClipboard = (textToCopy: string, itemId: string) => {
     if (typeof window !== 'undefined') {
-      navigator.clipboard.writeText(window.location.href);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 3000);
+      navigator.clipboard.writeText(textToCopy);
+      setCopiedId(itemId);
+      setTimeout(() => setCopiedId(null), 2500);
     }
   };
 
@@ -325,91 +324,89 @@ export default function GameChallengesPage() {
           </div>
         )}
 
-        {/* Quick Join Code & Share Link Section */}
-        <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 20 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'space-between', alignItems: 'center' }}>
-            
-            {/* Enter Code Box */}
-            <form onSubmit={handleJoinByCode} style={{ display: 'flex', gap: 10, flex: 1, minWidth: 260 }}>
-              <input
-                type="text"
-                placeholder="Enter Match Code (e.g. X7K29P)"
-                value={inputCode}
-                onChange={(e) => setInputCode(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: '#0a0b14',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '10px 14px',
-                  borderRadius: 4,
-                  fontSize: 13,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              />
-              <button
-                type="submit"
-                disabled={joiningByCode}
-                style={{
-                  background: 'var(--red)',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '10px 18px',
-                  fontWeight: 700,
-                  fontSize: 12,
-                  textTransform: 'uppercase',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {joiningByCode ? 'Joining…' : 'Join Match'}
-              </button>
-            </form>
-
-            {/* Share Link Button */}
-            <button
-              type="button"
-              onClick={handleCopyLink}
+        {/* Enter Code Join Bar */}
+        <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 16 }}>
+          <form onSubmit={handleJoinByCode} style={{ display: 'flex', gap: 10 }}>
+            <input
+              type="text"
+              placeholder="Paste or type Match Code (e.g. X7K29P)"
+              value={inputCode}
+              onChange={(e) => setInputCode(e.target.value)}
               style={{
-                background: copiedLink ? '#00ff64' : 'transparent',
-                color: copiedLink ? '#000' : '#fff',
-                border: `1px solid ${copiedLink ? '#00ff64' : 'var(--panel-border)'}`,
-                padding: '10px 18px',
+                flex: 1,
+                background: '#0a0b14',
+                border: '1px solid var(--panel-border)',
+                color: '#fff',
+                padding: '10px 14px',
+                borderRadius: 4,
+                fontSize: 13,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={joiningByCode}
+              style={{
+                background: 'var(--red)',
+                color: '#fff',
+                border: 'none',
+                padding: '10px 20px',
                 fontWeight: 700,
                 fontSize: 12,
                 textTransform: 'uppercase',
                 borderRadius: 4,
                 cursor: 'pointer',
-                transition: 'all 0.2s',
                 whiteSpace: 'nowrap',
               }}
             >
-              {copiedLink ? '✓ Link Copied!' : '🔗 Share Page Link'}
+              {joiningByCode ? 'Joining…' : 'Join via Code'}
             </button>
-
-          </div>
+          </form>
         </div>
 
+        {/* 1v1 Duels */}
         <GameSection title="1v1 Duels">
           {duels.length === 0 ? (
             <EmptyRow text={`No open 1v1 matches for ${game.title} yet.`} />
           ) : (
             duels.map((d) => {
               const isOwn = session && d.player1_id === session.user.id;
+              const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/duel/${d.id}`;
+              const codeCopied = copiedId === `code-${d.id}`;
+              const linkCopied = copiedId === `link-${d.id}`;
+
               return (
                 <div key={d.id} style={rowStyle}>
                   <Link href={`/duel/${d.id}`} style={rowInfoLinkStyle}>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{d.game}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {d.scheduled_at ? new Date(d.scheduled_at).toLocaleString() : 'Start time TBD'} · Code {d.share_code} · ${d.entry_fee} entry
+                      {d.scheduled_at ? new Date(d.scheduled_at).toLocaleString() : 'Start time TBD'} · Code <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{d.share_code}</span> · ${d.entry_fee} entry
                     </div>
                   </Link>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                    {/* Copy Match Code */}
+                    <button
+                      onClick={() => copyToClipboard(d.share_code, `code-${d.id}`)}
+                      style={{ ...actionBtnStyle, background: codeCopied ? '#00ff64' : 'transparent', color: codeCopied ? '#000' : '#fff' }}
+                      title="Copy Code"
+                    >
+                      {codeCopied ? 'Code Copied!' : `📋 ${d.share_code}`}
+                    </button>
+
+                    {/* Copy Match Link */}
+                    <button
+                      onClick={() => copyToClipboard(directLink, `link-${d.id}`)}
+                      style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}
+                      title="Share Match Link"
+                    >
+                      {linkCopied ? 'Link Copied!' : '🔗 Share'}
+                    </button>
+
                     <Link href={`/duel/${d.id}`} style={viewBtnStyle}>
                       View
                     </Link>
+
                     {isOwn ? (
                       <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Your Match</span>
                     ) : (
@@ -424,6 +421,7 @@ export default function GameChallengesPage() {
           )}
         </GameSection>
 
+        {/* Tournaments */}
         <GameSection title="Tournaments">
           {tournaments.length === 0 ? (
             <EmptyRow text={`No tournaments for ${game.title} yet.`} />
@@ -433,6 +431,9 @@ export default function GameChallengesPage() {
               const count = tournamentCounts[t.id] || 0;
               const full = t.max_players != null && count >= t.max_players;
               const canJoin = t.status === 'registration' && !joined && !full;
+              const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/tournaments/${t.id}`;
+              const linkCopied = copiedId === `link-${t.id}`;
+
               return (
                 <div key={t.id} style={rowStyle}>
                   <Link href={`/tournaments/${t.id}`} style={rowInfoLinkStyle}>
@@ -444,7 +445,13 @@ export default function GameChallengesPage() {
                       {t.max_players != null && ` · ${count}/${t.max_players} players`}
                     </div>
                   </Link>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                    <button
+                      onClick={() => copyToClipboard(directLink, `link-${t.id}`)}
+                      style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}
+                    >
+                      {linkCopied ? 'Link Copied!' : '🔗 Share'}
+                    </button>
                     <Link href={`/tournaments/${t.id}`} style={viewBtnStyle}>
                       View
                     </Link>
@@ -462,6 +469,7 @@ export default function GameChallengesPage() {
           )}
         </GameSection>
 
+        {/* Leagues */}
         <GameSection title="Leagues">
           {leagues.length === 0 ? (
             <EmptyRow text={`No leagues for ${game.title} yet.`} />
@@ -471,6 +479,9 @@ export default function GameChallengesPage() {
               const count = leagueCounts[l.id] || 0;
               const full = count >= l.max_players;
               const canJoin = l.status === 'open' && !joined && !full;
+              const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/leagues/${l.id}`;
+              const linkCopied = copiedId === `link-${l.id}`;
+
               return (
                 <div key={l.id} style={rowStyle}>
                   <Link href={`/leagues/${l.id}`} style={rowInfoLinkStyle}>
@@ -479,7 +490,13 @@ export default function GameChallengesPage() {
                       {l.status} · {count}/{l.max_players} players · {l.entry_fee > 0 ? `$${l.entry_fee}` : 'Free'}
                     </div>
                   </Link>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                    <button
+                      onClick={() => copyToClipboard(directLink, `link-${l.id}`)}
+                      style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}
+                    >
+                      {linkCopied ? 'Link Copied!' : '🔗 Share'}
+                    </button>
                     <Link href={`/leagues/${l.id}`} style={viewBtnStyle}>
                       View
                     </Link>
@@ -533,6 +550,18 @@ const rowInfoLinkStyle: React.CSSProperties = {
   color: '#fff',
   flex: 1,
   minWidth: 180,
+};
+
+const actionBtnStyle: React.CSSProperties = {
+  border: '1px solid var(--panel-border)',
+  padding: '8px 12px',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  borderRadius: 4,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  transition: 'all 0.2s',
 };
 
 const viewBtnStyle: React.CSSProperties = {
