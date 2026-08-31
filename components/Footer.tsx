@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Footer() {
   return (
     <footer
@@ -20,7 +22,10 @@ export default function Footer() {
         <span className="mono" style={{ color: 'var(--muted)', fontSize: 13 }}>
           © {new Date().getFullYear()} APEX DUEL — built for the arena.
         </span>
-        <div style={{ display: 'flex', gap: 24 }}>
+        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+          <Link href="/termsofplay" className="mono" style={{ color: 'var(--muted)', fontSize: 13 }}>
+            Terms of Play
+          </Link>
           {['Discord', 'Twitch', 'X'].map((s) => (
             <a key={s} href="#" className="mono" style={{ color: 'var(--muted)', fontSize: 13 }}>
               {s}
