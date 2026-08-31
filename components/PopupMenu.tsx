@@ -8,16 +8,6 @@ interface PopupMenuProps {
   onSignOut: () => void;
 }
 
-const menuLinks = [
-  { href: '/', label: 'Home' },
-  { href: '/categories', label: 'Categories' },
-  { href: '/markets', label: 'Markets' },
-  { href: '/challenges', label: 'Challenges' },
-  { href: '/tournaments', label: 'Tournaments' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/duels', label: '1v1 Matches' },
-];
-
 export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }: PopupMenuProps) {
   if (!isOpen) return null;
 
@@ -68,27 +58,6 @@ export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }:
           </button>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {menuLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={onClose}
-              style={{
-                padding: '12px 8px',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 15,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                borderBottom: '1px solid var(--panel-border)',
-              }}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
         <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--panel-border)' }}>
           {user ? (
             <>
@@ -129,25 +98,6 @@ export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }:
                 }}
               >
                 My Active
-              </Link>
-              <Link
-                href="/transfers"
-                onClick={onClose}
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '10px 14px',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  textTransform: 'uppercase',
-                  borderRadius: 4,
-                  marginBottom: 10,
-                  textDecoration: 'none',
-                }}
-              >
-                My Transfers
               </Link>
               <Link
                 href="/history"
