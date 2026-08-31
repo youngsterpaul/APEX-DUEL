@@ -26,6 +26,7 @@ export interface Profile {
   avatar_url: string | null;
   balance: number;
   gender: string | null;
+  country?: string | null;
   is_admin: boolean;
   whatsapp_username?: string | null;
   whatsapp_phone?: string | null;

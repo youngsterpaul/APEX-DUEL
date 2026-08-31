@@ -150,7 +150,7 @@ export default function ProfilePage() {
           </p>
         </div>
 
-        {/* Profile details — view mode by default, edit mode on tap */}
+        {/* Profile details */}
         <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: editing ? 18 : 4 }}>
             <h3 style={{ margin: 0, textTransform: 'uppercase', fontSize: 14 }}>Account Details</h3>
@@ -165,6 +165,7 @@ export default function ProfilePage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <ViewRow label="Username" value={profile.username} />
               <ViewRow label="Gender" value={profile.gender ? capitalize(profile.gender) : null} />
+              <ViewRow label="Country" value={profile.country} />
               <ViewRow label="WhatsApp Username" value={profile.whatsapp_username} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--panel-border)' }}>
                 <span style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase' }}>WhatsApp Phone</span>
@@ -210,6 +211,9 @@ export default function ProfilePage() {
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
+
+              <label style={labelStyle}>Country <span style={readOnlyTag}>cannot be edited</span></label>
+              <input disabled value={profile.country || 'Not set'} style={disabledInputStyle} />
 
               <label style={labelStyle}>WhatsApp Username <span style={optionalTag}>optional</span></label>
               <input value={whatsappUsername} onChange={(e) => setWhatsappUsername(e.target.value)} style={inputStyle} placeholder="Display name" />
@@ -287,6 +291,14 @@ const optionalTag: React.CSSProperties = {
   fontWeight: 400,
 };
 
+const readOnlyTag: React.CSSProperties = {
+  color: '#ff4444',
+  fontSize: 10,
+  textTransform: 'none',
+  letterSpacing: 'normal',
+  fontWeight: 400,
+};
+
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 12px',
@@ -295,6 +307,14 @@ const inputStyle: React.CSSProperties = {
   color: '#fff',
   borderRadius: 4,
   fontSize: 14,
+};
+
+const disabledInputStyle: React.CSSProperties = {
+  ...inputStyle,
+  background: '#1a1d2e',
+  color: 'var(--muted)',
+  cursor: 'not-allowed',
+  opacity: 0.7,
 };
 
 const primaryButtonStyle: React.CSSProperties = {
