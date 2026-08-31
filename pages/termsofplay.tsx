@@ -13,12 +13,13 @@ export default function TermsAndConditions() {
 
   const navItems = [
     { id: 'overview', label: '1. Platform Overview', icon: '📄' },
-    { id: 'escrow', label: '2. Match Escrow & Payments', icon: '🔒' },
+    { id: 'escrow', label: '2. Match Escrow & Weekly Payouts', icon: '🔒' },
     { id: 'results', label: '3. Result Verification', icon: '✅' },
-    { id: 'disputes', label: '4. Disputes & Evidence', icon: '⚖️' },
-    { id: 'time-forfeit', label: '5. Time Limits & Forfeits', icon: '⏰' },
+    { id: 'disputes', label: '4. Disputes & Fraud Bans', icon: '⚖️' },
+    { id: 'time-forfeit', label: '5. Time Limits & 24-Hour Transfer Rules', icon: '⏰' },
     { id: 'tournaments', label: '6. Tournaments & Leagues', icon: '🏆' },
-    { id: 'fairplay', label: '7. Non-Cooperation & Penalties', icon: '⚠️' },
+    { id: 'account-trading', label: '7. Marketplace, Account Selling & External Chat', icon: '🛒' },
+    { id: 'fairplay', label: '8. Non-Cooperation & Penalties', icon: '⚠️' },
   ];
 
   return (
@@ -70,7 +71,7 @@ export default function TermsAndConditions() {
 
           {/* Main Terms Document */}
           <main className="lg:col-span-3 space-y-8">
-            {/* Hero Header */}
+            {/* Hero / Document Header */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 relative overflow-hidden">
               <div className="inline-flex items-center space-x-2 text-indigo-400 text-xs font-semibold uppercase tracking-widest mb-3 bg-indigo-500/10 px-3 py-1 rounded-md border border-indigo-500/20">
                 Legal Binding Terms
@@ -79,7 +80,7 @@ export default function TermsAndConditions() {
                 Terms of Service & Competitive Rules
               </h1>
               <p className="mt-3 text-slate-400 text-sm sm:text-base leading-relaxed">
-                Please read these terms carefully before participating in any 1v1 matches, tournaments, or leagues hosted on APEX DUEL.
+                Please read these terms carefully before participating in any 1v1 matches, tournaments, leagues, or marketplace transactions hosted on APEX DUEL.
               </p>
             </div>
 
@@ -91,27 +92,27 @@ export default function TermsAndConditions() {
               </div>
               <div className="text-slate-300 text-sm sm:text-base space-y-3 leading-relaxed">
                 <p>
-                  Our platform provides an automated global competitive ecosystem enabling gamers to create and join 1v1 matches, user-created tournaments, and long-term leagues across any video game title worldwide.
+                  Our platform provides an automated global competitive ecosystem enabling gamers to create and join 1v1 matches, user-created tournaments, and long-term leagues across supported video games on the platform.
                 </p>
                 <p>
-                  By creating an account or joining any match, you agree to abide by these Terms and Conditions. All competitive match stakes are locked using automated smart contracts/escrow to guarantee dispute-free payouts.
+                  By creating an account, participating in challenges, or trading on the platform, you agree to abide by these Terms and Conditions. All competitive stakes and account transfers are processed via smart escrow to guarantee security and prevent fraud.
                 </p>
               </div>
             </section>
 
-            {/* Section 2: Match Escrow & Payments */}
+            {/* Section 2: Match Escrow & Weekly Payouts */}
             <section id="escrow" className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 sm:p-8 space-y-4">
               <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
                 <span className="text-xl">🔒</span>
-                <h2 className="text-xl font-bold text-white">2. Match Escrow & Automated Payouts</h2>
+                <h2 className="text-xl font-bold text-white">2. Match Escrow & Weekly Payouts</h2>
               </div>
               <div className="text-slate-300 text-sm sm:text-base space-y-4 leading-relaxed">
                 <div className="p-4 bg-indigo-950/40 border border-indigo-800/50 rounded-xl">
                   <h3 className="text-indigo-300 font-semibold mb-1 text-sm uppercase tracking-wide">
-                    Smart Escrow Protection
+                    Smart Escrow & Weekly Settlement
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-300">
-                    To avoid lies and theft of prizes, entry stakes are held in smart escrow before the match begins. Funds cannot be withdrawn or cancelled by either player during an active match.
+                    To avoid lies, unpaid prizes, and theft of rewards, entry stakes are locked into smart escrow before any match begins. Standard platform payments and tournament balances are processed and disbursed on a **weekly basis**.
                   </p>
                 </div>
 
@@ -120,7 +121,10 @@ export default function TermsAndConditions() {
                     <strong className="text-white">1v1 Matches (Paid Only):</strong> All 1v1 head-to-head matches require players to set monetary stakes. 1v1 matches are strictly not free.
                   </li>
                   <li>
-                    <strong className="text-white">Escrow Release:</strong> Upon mutual confirmation (Winner marks "Win", Loser marks "Loss"), funds automatically transfer to the winner without delay.
+                    <strong className="text-white">Escrow Release:</strong> Upon mutual confirmation (Winner marks "Win", Loser marks "Loss"), funds automatically credit to the winner.
+                  </li>
+                  <li>
+                    <strong className="text-white">Supported Games:</strong> All challenges and transfers apply strictly to video games officially integrated into the platform.
                   </li>
                 </ul>
               </div>
@@ -137,57 +141,65 @@ export default function TermsAndConditions() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-2">
                   <div className="p-4 bg-emerald-950/20 border border-emerald-800/40 rounded-xl">
                     <span className="font-bold text-emerald-400 block mb-1">Winner Action</span>
-                    Must mark that they have won the game.
+                    Must navigate to the match page and mark that they have won.
                   </div>
                   <div className="p-4 bg-rose-950/20 border border-rose-800/40 rounded-xl">
                     <span className="font-bold text-rose-400 block mb-1">Loser Action</span>
-                    Must mark that they have lost the game.
+                    Must navigate to the match page and mark that they have lost.
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* Section 4: Disputes & Evidence */}
+            {/* Section 4: Disputes & Account Ban Policy */}
             <section id="disputes" className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 sm:p-8 space-y-4">
               <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
                 <span className="text-xl">⚖️</span>
-                <h2 className="text-xl font-bold text-white">4. Dispute Settlement & Required Evidence</h2>
+                <h2 className="text-xl font-bold text-white">4. Dispute Settlement & Account Ban Policy</h2>
               </div>
               <div className="text-slate-300 text-sm sm:text-base space-y-4 leading-relaxed">
                 <p>
-                  If a player fails to accept defeat, the match enters Dispute status.
+                  If a player fails to accept defeat or submits contradictory outcomes, the match enters Dispute status. Both players must submit score screenshots and matching in-game match history logs.
                 </p>
-                <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 space-y-3">
-                  <h3 className="font-semibold text-white text-sm">Required Evidence Standards:</h3>
-                  <p className="text-xs text-slate-400">
-                    Both players must provide screenshots showing:
+
+                <div className="p-4 bg-rose-950/40 border border-rose-800/50 rounded-xl space-y-2">
+                  <h3 className="text-rose-300 font-bold text-sm uppercase tracking-wide">
+                    Zero Tolerance for Deception & Fake Wins
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    Any user who intentionally lies about winning, submits fake/edited screenshots, or attempts to deceive an opponent or admin will be <strong className="text-rose-400 font-bold">permanently banned</strong> from the platform. All locked stakes will be awarded to the honest opponent.
                   </p>
-                  <ul className="space-y-2 text-xs sm:text-sm text-slate-300 list-disc list-inside">
-                    <li>Final score screenshot.</li>
-                    <li>In-game match history matching the game details.</li>
-                  </ul>
                 </div>
               </div>
             </section>
 
-            {/* Section 5: Time Limits & Forfeits */}
+            {/* Section 5: Time Limits & 24-Hour Transfer Rules */}
             <section id="time-forfeit" className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 sm:p-8 space-y-4">
               <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
                 <span className="text-xl">⏰</span>
-                <h2 className="text-xl font-bold text-white">5. Punctuality & 24-Hour Resolution</h2>
+                <h2 className="text-xl font-bold text-white">5. Punctuality, Transfers & 24-Hour Rules</h2>
               </div>
               <div className="text-slate-300 text-sm sm:text-base space-y-4 leading-relaxed">
                 <div className="space-y-2">
                   <h3 className="text-white font-semibold">Match Entrance Time Limit</h3>
                   <p className="text-sm">
-                    If a player fails to enter the match at the specified start time, they will be given an automatic <strong className="text-rose-400">Loss</strong>. The player who enters on time will be granted the <strong className="text-emerald-400">Win</strong>.
+                    If a player fails to enter the match lobby at the specified start time, they will be given an automatic <strong className="text-rose-400">Loss</strong>. The player who enters on time will be granted an automatic <strong className="text-emerald-400">Win</strong> and receive the payout.
                   </p>
                 </div>
+
                 <div className="space-y-2 pt-2">
-                  <h3 className="text-white font-semibold">24-Hour Auto-Grant Rule</h3>
+                  <h3 className="text-white font-semibold">Complete Transfer & Winning 24-Hour Rules</h3>
                   <p className="text-sm">
-                    If one user fails to prove win/loss or fails to respond, the opposing player's win or loss request will be automatically granted within <strong className="text-indigo-400">24 hours</strong>.
+                    Complete account transfers or match winning confirmations must be finalized within **24 hours**.
                   </p>
+                  <ul className="space-y-2 text-xs sm:text-sm list-disc list-inside text-slate-300">
+                    <li>
+                      <strong className="text-amber-400">Both Fail to Mark:</strong> If both parties fail to mark the transfer/completion within 24 hours, the funds will be **held indefinitely** until further admin investigation.
+                    </li>
+                    <li>
+                      <strong className="text-indigo-400">Single Party Submission:</strong> If either user marks the transfer/match as "Complete" or "Not Complete", their request will be officially **heard and reviewed** within the 24-hour window.
+                    </li>
+                  </ul>
                 </div>
               </div>
             </section>
@@ -199,25 +211,56 @@ export default function TermsAndConditions() {
                 <h2 className="text-xl font-bold text-white">6. Tournaments & Leagues Rules</h2>
               </div>
               <div className="text-slate-300 text-sm sm:text-base space-y-4 leading-relaxed">
-                <p>
-                  Users can create tournaments and leagues on the platform.
-                </p>
-                <ul className="space-y-2 text-xs sm:text-sm text-slate-300 list-disc list-inside">
-                  <li>For free tournaments or leagues, the creator must set the winning prize pool and method of winning.</li>
-                  <li>1v1 matches are not free under any circumstance.</li>
+                <ul className="space-y-3 text-xs sm:text-sm text-slate-300 list-disc list-inside">
+                  <li>
+                    <strong className="text-white">Non-Player Hosting:</strong> Tournament and League creators are **not required to play** in the events they organize. Creators can act purely as host/organizer.
+                  </li>
+                  <li>
+                    <strong className="text-white">Free Tournaments & Leagues:</strong> Organizers hosting free events must explicitly set the winning prize pool and state the clear method of winning/payout distribution prior to launching.
+                  </li>
+                  <li>
+                    <strong className="text-white">Paid 1v1 Matches:</strong> Standard 1v1 challenges are never free under any circumstance.
+                  </li>
                 </ul>
               </div>
             </section>
 
-            {/* Section 7: Non-Cooperation Policy */}
+            {/* Section 7: Account Marketplace & External Communication */}
+            <section id="account-trading" className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 sm:p-8 space-y-4">
+              <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
+                <span className="text-xl">🛒</span>
+                <h2 className="text-xl font-bold text-white">7. Marketplace, Account Selling & External Communication</h2>
+              </div>
+              <div className="text-slate-300 text-sm sm:text-base space-y-4 leading-relaxed">
+                <p>
+                  Users are allowed to buy and sell gaming accounts directly on the platform marketplace, subject to strict verification standards:
+                </p>
+
+                <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 space-y-3 text-xs sm:text-sm">
+                  <ul className="space-y-2 list-disc list-inside text-slate-300">
+                    <li>
+                      <strong className="text-white">External Communication Allowed:</strong> Players and buyers/sellers are permitted to communicate **outside the app** via channels such as **Discord** or **WhatsApp** to coordinate match details or account transfer details.
+                    </li>
+                    <li>
+                      <strong className="text-white">Listed Details & Rating Compliance:</strong> Accounts listed for sale must strictly match all listed details. Key metrics such as match rating, rank, level, or win-rate **must not fall below** what was specified in the marketplace listing.
+                    </li>
+                    <li>
+                      <strong className="text-white">Escrow Payment Hold:</strong> When an account is purchased, buyer payment is held in escrow. If the account details or ratings are found to be false/inaccurate after transfer, **payment will NOT be released** to the seller.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 8: Non-Cooperation Policy */}
             <section id="fairplay" className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 sm:p-8 space-y-4">
               <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
                 <span className="text-xl">⚠️</span>
-                <h2 className="text-xl font-bold text-white">7. Non-Cooperation Policy</h2>
+                <h2 className="text-xl font-bold text-white">8. Non-Cooperation Policy</h2>
               </div>
               <div className="text-slate-300 text-sm sm:text-base space-y-3 leading-relaxed">
                 <p>
-                  If a user fails or refuses to cooperate during a dispute, favor will be given to the player who cooperates. The non-cooperative player forfeits their claim to the escrowed funds.
+                  If a user fails or refuses to cooperate during a dispute investigation, favor will be awarded automatically to the cooperating player. Non-cooperative players forfeit all claims to locked escrow funds.
                 </p>
               </div>
             </section>
