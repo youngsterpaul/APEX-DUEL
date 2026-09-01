@@ -236,7 +236,7 @@ export interface Transfer {
   seller_response_evidence_urls: string[];
   seller_responded_at: string | null;
 
-  created_at: string;
+  created_at: string; 
   completed_at: string | null;
   cancelled_at: string | null;
 }
