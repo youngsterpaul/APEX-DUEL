@@ -1,17 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-
-const {
-  MPESA_CONSUMER_KEY,
-  MPESA_CONSUMER_SECRET,
-  MPESA_SHORTCODE,
-  MPESA_PASSKEY,
-  MPESA_BASE_URL = 'https://sandbox.safaricom.co.ke',
-  MPESA_CALLBACK_URL,
-  NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY,
-} = process.env;
 
 function normalizePhone(input: string): string | null {
   const digits = input.replace(/\D/g, '');
@@ -34,49 +22,83 @@ function timestampNow(): string {
   );
 }
 
-async function getAccessToken(): Promise<string> {
-  const auth = Buffer.from(`${MPESA_CONSUMER_KEY}:${MPESA_CONSUMER_SECRET}`).toString('base64');
-  const res = await fetch(`${MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`, {
+async function getAccessToken(consumerKey: string, consumerSecret: string, baseUrl: string): Promise<string> {
+  const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
+  const res = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
     headers: { Authorization: `Basic ${auth}` },
   });
-  if (!res.ok) throw new Error('Failed to authenticate with M-Pesa.');
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`M-Pesa auth failed: ${errText}`);
+  }
   const data = await res.json();
   return data.access_token;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Ensure response header is strictly JSON
+  res.setHeader('Content-Type', 'application/json');
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET || !MPESA_SHORTCODE || !MPESA_PASSKEY || !MPESA_CALLBACK_URL) {
-    return res.status(500).json({
-      error: 'M-Pesa is not configured yet. Set MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_SHORTCODE, MPESA_PASSKEY, and MPESA_CALLBACK_URL in your environment variables.',
-    });
-  }
-
-  // Identify the signed-in user from their access token (sent by the client).
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Not signed in.' });
-
-  const anonClient = createClient(NEXT_PUBLIC_SUPABASE_URL as string, NEXT_PUBLIC_SUPABASE_ANON_KEY as string);
-  const { data: userData, error: userError } = await anonClient.auth.getUser(token);
-  if (userError || !userData.user) return res.status(401).json({ error: 'Not signed in.' });
-  const user = userData.user;
-
-  const { amount, phone } = req.body as { amount?: number; phone?: string };
-
-  if (!amount || amount < 1) {
-    return res.status(400).json({ error: 'Amount must be at least 1.' });
-  }
-  const normalizedPhone = phone ? normalizePhone(phone) : null;
-  if (!normalizedPhone) {
-    return res.status(400).json({ error: 'Enter a valid Safaricom number, e.g. 07XXXXXXXX.' });
-  }
-
   try {
-    // Get or create this user's unique paybill account reference.
+    const {
+      MPESA_CONSUMER_KEY,
+      MPESA_CONSUMER_SECRET,
+      MPESA_SHORTCODE,
+      MPESA_PASSKEY,
+      MPESA_BASE_URL = 'https://sandbox.safaricom.co.ke',
+      MPESA_CALLBACK_URL,
+      NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY,
+    } = process.env;
+
+    // Check required environment variables inside try/catch
+    const missingVars = [];
+    if (!MPESA_CONSUMER_KEY) missingVars.push('MPESA_CONSUMER_KEY');
+    if (!MPESA_CONSUMER_SECRET) missingVars.push('MPESA_CONSUMER_SECRET');
+    if (!MPESA_SHORTCODE) missingVars.push('MPESA_SHORTCODE');
+    if (!MPESA_PASSKEY) missingVars.push('MPESA_PASSKEY');
+    if (!MPESA_CALLBACK_URL) missingVars.push('MPESA_CALLBACK_URL');
+    if (!NEXT_PUBLIC_SUPABASE_URL) missingVars.push('NEXT_PUBLIC_SUPABASE_URL');
+    if (!NEXT_PUBLIC_SUPABASE_ANON_KEY) missingVars.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+
+    if (missingVars.length > 0) {
+      return res.status(400).json({
+        error: `Missing environment variables: ${missingVars.join(', ')}`,
+      });
+    }
+
+    // Authenticate user via Supabase
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Not signed in.' });
+
+    const anonClient = createClient(NEXT_PUBLIC_SUPABASE_URL!, NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const { data: userData, error: userError } = await anonClient.auth.getUser(token);
+    
+    if (userError || !userData.user) {
+      return res.status(401).json({ error: 'Authentication failed. Please sign in again.' });
+    }
+    const user = userData.user;
+
+    const { amount, phone } = req.body as { amount?: number; phone?: string };
+
+    if (!amount || amount < 1) {
+      return res.status(400).json({ error: 'Amount must be at least 1 KES.' });
+    }
+    const normalizedPhone = phone ? normalizePhone(phone) : null;
+    if (!normalizedPhone) {
+      return res.status(400).json({ error: 'Enter a valid Safaricom number, e.g. 07XXXXXXXX or 01XXXXXXXX.' });
+    }
+
+    // Initialize Admin Supabase Client safely
+    const adminKey = SUPABASE_SERVICE_ROLE_KEY || NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseAdmin = createClient(NEXT_PUBLIC_SUPABASE_URL!, adminKey!);
+
     let accountRef: string | null = null;
     const { data: profile } = await supabaseAdmin
       .from('profiles')
@@ -90,7 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await supabaseAdmin.from('profiles').update({ mpesa_account_ref: accountRef }).eq('id', user.id);
     }
 
-    const accessToken = await getAccessToken();
+    const accessToken = await getAccessToken(MPESA_CONSUMER_KEY!, MPESA_CONSUMER_SECRET!, MPESA_BASE_URL);
     const timestamp = timestampNow();
     const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
 
@@ -118,7 +140,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const stkData = await stkRes.json();
 
     if (stkData.ResponseCode !== '0') {
-      return res.status(400).json({ error: stkData.errorMessage || stkData.ResponseDescription || 'M-Pesa request failed.' });
+      return res.status(400).json({
+        error: stkData.errorMessage || stkData.ResponseDescription || 'M-Pesa request failed.',
+      });
     }
 
     await supabaseAdmin.from('deposit_requests').insert([
@@ -139,6 +163,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: 'Check your phone and enter your M-Pesa PIN to complete the deposit.',
     });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message || 'Something went wrong initiating the deposit.' });
+    console.error('STK Push Handler Error:', err);
+    return res.status(500).json({ error: err.message || 'Internal server error processing deposit.' });
   }
 }
