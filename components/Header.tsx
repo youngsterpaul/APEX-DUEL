@@ -1,124 +1,275 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useCart } from '../lib/cartContext';
+import PopupMenu from './PopupMenu';
+import CartModal from './CartModal';
+
+interface NavLink {
+  href: string;
+  label: string;
+}
+
+const navLinks: NavLink[] = [
+  { href: '/', label: 'Home' },
+  { href: '/markets', label: 'Markets' },
+  { href: '/tournaments', label: 'Tournaments' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/duels', label: '1v1' },
+];
 
 export default function Header() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const { count } = useCart();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session) checkAdmin(session.user.id);
     });
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session) checkAdmin(session.user.id);
+      else setIsAdmin(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  return (
-    <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'rgba(10, 11, 20, 0.95)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid var(--panel-border)',
-        height: '64px',
-        padding: '0 24px',
-        display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
-        alignItems: 'center',
-      }}
-    >
-      {/* Left Column: Brand Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-        <Link href="/" style={{ textDecoration: 'none', color: '#fff', fontWeight: 800, fontSize: '20px' }}>
-          APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
-        </Link>
-      </div>
+  const checkAdmin = async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('is_admin').eq('id', userId).maybeSingle();
+    setIsAdmin(Boolean(data?.is_admin));
+  };
 
-      {/* Center Column: Quick Nav */}
-      <nav
-        className="desktop-quick-nav"
+  return (
+    <>
+      <header
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '24px',
-          justifyContent: 'center',
+          borderBottom: '1px solid var(--panel-border)',
+          background: 'rgba(10,11,20,0.95)',
+          backdropFilter: 'blur(8px)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          width: '100%',
         }}
       >
-        <Link href="/" style={navLinkStyle(router.pathname === '/')}>
-          Home
-        </Link>
-        <Link href="/active" style={navLinkStyle(router.pathname === '/active')}>
-          Active
-        </Link>
-        <Link href="/transfers" style={navLinkStyle(router.pathname === '/transfers')}>
-          Transfers
-        </Link>
-        <Link href="/wallet" style={navLinkStyle(router.pathname === '/wallet')}>
-          Wallet
-        </Link>
-      </nav>
-
-      {/* Right Column: Profile / Login Action */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '16px' }}>
-        {user ? (
-          <Link href="/profile" style={profileBtnStyle}>
-            Profile
+        <div
+          className="container"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: '72px',
+            padding: '0 16px',
+            maxWidth: '100%',
+          }}
+        >
+          {/* Home Logo */}
+          <Link href="/" className="display" style={{ fontSize: '22px', fontWeight: 800, textDecoration: 'none', color: '#fff', letterSpacing: '0.02em' }}>
+            APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
           </Link>
-        ) : (
-          <Link href="/login" style={loginBtnStyle}>
-            Log In
-          </Link>
-        )}
-      </div>
 
-      <style jsx>{`
+          {/* Desktop Navigation */}
+          <nav className="desktop-nav" style={{ gap: '28px', alignItems: 'center' }}>
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                style={{
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  color: router.pathname === link.href ? '#fff' : 'var(--muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  textDecoration: 'none',
+                }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {/* Cart */}
+            <button
+              onClick={() => setCartOpen(true)}
+              aria-label="Cart"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '38px',
+                height: '38px',
+                borderRadius: '4px',
+                border: '1px solid var(--panel-border)',
+                background: 'transparent',
+                color: '#fff',
+                fontSize: '16px',
+                cursor: 'pointer',
+              }}
+            >
+              🛒
+              {count > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-6px',
+                    right: '-6px',
+                    background: 'var(--red)',
+                    color: '#fff',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    borderRadius: '999px',
+                    minWidth: '16px',
+                    height: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                  }}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+
+            {/* Challenge CTA Button */}
+            <Link
+              href="/challenges"
+              style={{
+                background: 'var(--red)',
+                color: '#fff',
+                padding: '8px 14px',
+                fontWeight: 700,
+                fontSize: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                textDecoration: 'none',
+                borderRadius: '2px',
+                transform: 'skewX(-10deg)',
+                display: 'inline-block',
+                boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
+              }}
+            >
+              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
+            </Link>
+
+            {/* Hamburger / Menu toggle button */}
+            <button
+              onClick={() => setMenuOpen(true)}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--panel-border)',
+                color: '#fff',
+                padding: '8px 10px',
+                cursor: 'pointer',
+                borderRadius: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '38px',
+                width: '42px',
+              }}
+              aria-label="Open Menu"
+            >
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Sub-Header Navigation Bar */}
+        <div
+          className="mobile-subnav"
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            background: '#0a0b14',
+            padding: '8px 12px',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {navLinks.map((link) => {
+              const isActive = router.pathname === link.href;
+              const isHomeLink = link.href === '/';
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={isHomeLink ? 'mobile-home-nav-item' : ''}
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    color: isActive ? 'var(--red)' : '#ccc',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    textDecoration: 'none',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    background: isActive ? 'rgba(255,59,92,0.12)' : 'transparent',
+                    border: isActive ? '1px solid rgba(255,59,92,0.3)' : '1px solid transparent',
+                    flexShrink: 0,
+                  }}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </header>
+
+      {/* Responsive layout controls */}
+      <style jsx global>{`
+        .desktop-nav {
+          display: none;
+        }
+        .mobile-subnav {
+          display: block;
+        }
+
+        /* Hide Home link from top sub-nav on small screens (max 768px) */
         @media (max-width: 768px) {
-          .desktop-quick-nav {
+          .mobile-home-nav-item {
+            display: none !important;
+          }
+        }
+
+        @media (min-width: 900px) {
+          .desktop-nav {
+            display: flex !important;
+          }
+          .mobile-subnav {
             display: none !important;
           }
         }
       `}</style>
-    </header>
+
+      {/* Render modular Popup Menu */}
+      <PopupMenu
+        isOpen={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        user={user}
+        isAdmin={isAdmin}
+        onSignOut={async () => { await supabase.auth.signOut(); }}
+      />
+
+      {/* Cart popup */}
+      <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+    </>
   );
 }
-
-const navLinkStyle = (isActive: boolean): React.CSSProperties => ({
-  color: isActive ? '#fff' : 'var(--muted)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: isActive ? 700 : 500,
-  borderBottom: isActive ? '2px solid var(--red)' : '2px solid transparent',
-  paddingBottom: '4px',
-  transition: 'color 0.2s ease, border-bottom 0.2s ease',
-});
-
-const profileBtnStyle: React.CSSProperties = {
-  background: 'transparent',
-  border: '1px solid var(--panel-border)',
-  color: '#fff',
-  padding: '6px 16px',
-  borderRadius: '4px',
-  fontSize: '13px',
-  fontWeight: 600,
-  textDecoration: 'none',
-};
-
-const loginBtnStyle: React.CSSProperties = {
-  background: 'var(--red)',
-  color: '#fff',
-  padding: '6px 16px',
-  borderRadius: '4px',
-  fontSize: '13px',
-  fontWeight: 700,
-  textDecoration: 'none',
-};
