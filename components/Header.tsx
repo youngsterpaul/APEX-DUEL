@@ -14,11 +14,9 @@ interface NavLink {
 const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/markets', label: 'Markets' },
-  { href: '/challenges', label: 'Challenges' },
   { href: '/tournaments', label: 'Tournaments' },
   { href: '/leagues', label: 'Leagues' },
   { href: '/duels', label: '1v1' },
-  { href: '/transfers', label: 'Transfers' },
 ];
 
 export default function Header() {
