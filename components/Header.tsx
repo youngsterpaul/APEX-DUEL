@@ -201,7 +201,16 @@ export default function Header() {
             WebkitOverflowScrolling: 'touch',
           }}
         >
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '12px',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 'max-content',
+              margin: '0 auto',
+            }}
+          >
             {navLinks.map((link) => {
               const isActive = router.pathname === link.href;
               const isHomeLink = link.href === '/';
