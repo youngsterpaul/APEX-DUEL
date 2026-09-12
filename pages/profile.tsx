@@ -30,11 +30,10 @@ export default function ProfilePage() {
   const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [updating, setUpdating] = useState(false);
+  const [updatingField, setUpdatingField] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Form Fields State
+  // Field Values
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [discordUsername, setDiscordUsername] = useState('');
@@ -42,6 +41,9 @@ export default function ProfilePage() {
   const [whatsappMobile, setWhatsappMobile] = useState('');
   const [gender, setGender] = useState('');
   const [country, setCountry] = useState('');
+
+  // Per-field Edit Toggle state
+  const [editingFields, setEditingFields] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -78,30 +80,29 @@ export default function ProfilePage() {
     setLoading(false);
   };
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUpdating(true);
+  const toggleEditField = (fieldName: string) => {
+    setEditingFields((prev) => ({
+      ...prev,
+      [fieldName]: !prev[fieldName],
+    }));
+  };
+
+  const handleSaveField = async (fieldName: string, dbColumn: string, value: string) => {
+    setUpdatingField(fieldName);
     setMessage(null);
 
-    // Save only editable fields (username and gender are locked)
     const { error } = await supabase
       .from('profiles')
-      .update({
-        full_name: fullName,
-        discord_username: discordUsername,
-        whatsapp_username: whatsappUsername,
-        whatsapp_mobile: whatsappMobile,
-        country,
-      })
+      .update({ [dbColumn]: value })
       .eq('id', session.user.id);
 
     if (error) {
       setMessage({ type: 'error', text: error.message });
     } else {
-      setMessage({ type: 'success', text: 'Profile details saved successfully!' });
-      setIsEditing(false);
+      setMessage({ type: 'success', text: 'Field updated successfully!' });
+      setEditingFields((prev) => ({ ...prev, [fieldName]: false }));
     }
-    setUpdating(false);
+    setUpdatingField(null);
   };
 
   const handleSignOut = async () => {
@@ -136,40 +137,267 @@ export default function ProfilePage() {
               padding: '24px',
             }}
           >
-            {/* Header Avatar & Edit Action */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div
-                  style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '50%',
-                    background: 'var(--panel-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '24px',
-                    fontWeight: 700,
-                  }}
-                >
-                  {username ? username.charAt(0).toUpperCase() : '👤'}
+            {/* Header Avatar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'var(--panel-border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  fontWeight: 700,
+                }}
+              >
+                {username ? username.charAt(0).toUpperCase() : '👤'}
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '18px' }}>{username || 'User'}</div>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>
+                  {session?.user?.email}
                 </div>
+              </div>
+            </div>
+
+            {message && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  marginBottom: '16px',
+                  background: message.type === 'success' ? 'rgba(41,231,205,0.15)' : 'rgba(255,68,68,0.15)',
+                  color: message.type === 'success' ? '#29e7cd' : '#ff4444',
+                  border: `1px solid ${message.type === 'success' ? '#29e7cd' : '#ff4444'}`,
+                }}
+              >
+                {message.text}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Personal Information */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* Username - ALWAYS LOCKED */}
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '18px' }}>{username || 'User'}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>
-                    {session?.user?.email}
+                  <div style={labelHeaderStyle}>
+                    <label style={labelStyle}>Username</label>
+                    <span style={lockedTagStyle}>Locked</span>
                   </div>
+                  <input type="text" value={username} disabled style={disabledInputStyle} />
+                </div>
+
+                {/* Gender - ALWAYS LOCKED */}
+                <div>
+                  <div style={labelHeaderStyle}>
+                    <label style={labelStyle}>Gender</label>
+                    <span style={lockedTagStyle}>Locked</span>
+                  </div>
+                  <input type="text" value={gender || 'Not specified'} disabled style={disabledInputStyle} />
+                </div>
+
+                {/* Full Name */}
+                <div>
+                  <div style={labelHeaderStyle}>
+                    <label style={labelStyle}>Full Name</label>
+                    <button
+                      type="button"
+                      onClick={() => toggleEditField('fullName')}
+                      style={inlineEditBtnStyle}
+                    >
+                      {editingFields['fullName'] ? 'Cancel' : 'Edit'}
+                    </button>
+                  </div>
+                  {editingFields['fullName'] ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="John Doe"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveField('fullName', 'full_name', fullName)}
+                        disabled={updatingField === 'fullName'}
+                        style={saveBtnStyle}
+                      >
+                        {updatingField === 'fullName' ? '...' : 'Save'}
+                      </button>
+                    </div>
+                  ) : (
+                    <input type="text" value={fullName || 'Not provided'} disabled style={disabledInputStyle} />
+                  )}
+                </div>
+
+                {/* Country Dropdown */}
+                <div>
+                  <div style={labelHeaderStyle}>
+                    <label style={labelStyle}>Country</label>
+                    <button
+                      type="button"
+                      onClick={() => toggleEditField('country')}
+                      style={inlineEditBtnStyle}
+                    >
+                      {editingFields['country'] ? 'Cancel' : 'Edit'}
+                    </button>
+                  </div>
+                  {editingFields['country'] ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        style={{ ...inputStyle, cursor: 'pointer' }}
+                      >
+                        <option value="" style={optionStyle}>Select Country</option>
+                        {WORLD_COUNTRIES.map((c) => (
+                          <option key={c} value={c} style={optionStyle}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveField('country', 'country', country)}
+                        disabled={updatingField === 'country'}
+                        style={saveBtnStyle}
+                      >
+                        {updatingField === 'country' ? '...' : 'Save'}
+                      </button>
+                    </div>
+                  ) : (
+                    <input type="text" value={country || 'Not selected'} disabled style={disabledInputStyle} />
+                  )}
                 </div>
               </div>
 
-              {!isEditing && (
+              <hr style={{ border: 'none', borderTop: '1px solid var(--panel-border)', margin: '8px 0' }} />
+
+              {/* Social & Contact Information */}
+              <h3 className="display" style={{ fontSize: '16px', textTransform: 'uppercase' }}>
+                Contact & Social Handles
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {/* Discord Username */}
+                <div>
+                  <div style={labelHeaderStyle}>
+                    <label style={labelStyle}>Discord Username</label>
+                    <button
+                      type="button"
+                      onClick={() => toggleEditField('discordUsername')}
+                      style={inlineEditBtnStyle}
+                    >
+                      {editingFields['discordUsername'] ? 'Cancel' : 'Edit'}
+                    </button>
+                  </div>
+                  {editingFields['discordUsername'] ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="username#0000"
+                        value={discordUsername}
+                        onChange={(e) => setDiscordUsername(e.target.value)}
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveField('discordUsername', 'discord_username', discordUsername)}
+                        disabled={updatingField === 'discordUsername'}
+                        style={saveBtnStyle}
+                      >
+                        {updatingField === 'discordUsername' ? '...' : 'Save'}
+                      </button>
+                    </div>
+                  ) : (
+                    <input type="text" value={discordUsername || 'Not connected'} disabled style={disabledInputStyle} />
+                  )}
+                </div>
+
+                {/* WhatsApp Username */}
+                <div>
+                  <div style={labelHeaderStyle}>
+                    <label style={labelStyle}>WhatsApp Username</label>
+                    <button
+                      type="button"
+                      onClick={() => toggleEditField('whatsappUsername')}
+                      style={inlineEditBtnStyle}
+                    >
+                      {editingFields['whatsappUsername'] ? 'Cancel' : 'Edit'}
+                    </button>
+                  </div>
+                  {editingFields['whatsappUsername'] ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="WhatsApp handle"
+                        value={whatsappUsername}
+                        onChange={(e) => setWhatsappUsername(e.target.value)}
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveField('whatsappUsername', 'whatsapp_username', whatsappUsername)}
+                        disabled={updatingField === 'whatsappUsername'}
+                        style={saveBtnStyle}
+                      >
+                        {updatingField === 'whatsappUsername' ? '...' : 'Save'}
+                      </button>
+                    </div>
+                  ) : (
+                    <input type="text" value={whatsappUsername || 'Not provided'} disabled style={disabledInputStyle} />
+                  )}
+                </div>
+
+                {/* WhatsApp Mobile */}
+                <div>
+                  <div style={labelHeaderStyle}>
+                    <label style={labelStyle}>WhatsApp Mobile Number</label>
+                    <button
+                      type="button"
+                      onClick={() => toggleEditField('whatsappMobile')}
+                      style={inlineEditBtnStyle}
+                    >
+                      {editingFields['whatsappMobile'] ? 'Cancel' : 'Edit'}
+                    </button>
+                  </div>
+                  {editingFields['whatsappMobile'] ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="tel"
+                        placeholder="+254700000000"
+                        value={whatsappMobile}
+                        onChange={(e) => setWhatsappMobile(e.target.value)}
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveField('whatsappMobile', 'whatsapp_mobile', whatsappMobile)}
+                        disabled={updatingField === 'whatsappMobile'}
+                        style={saveBtnStyle}
+                      >
+                        {updatingField === 'whatsappMobile' ? '...' : 'Save'}
+                      </button>
+                    </div>
+                  ) : (
+                    <input type="text" value={whatsappMobile || 'Not provided'} disabled style={disabledInputStyle} />
+                  )}
+                </div>
+              </div>
+
+              {/* Account Actions */}
+              <div style={{ marginTop: '16px' }}>
                 <button
                   type="button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={handleSignOut}
                   style={{
-                    background: 'var(--red)',
-                    color: '#fff',
-                    border: 'none',
+                    background: 'transparent',
+                    color: '#ff4444',
+                    border: '1px solid rgba(255,68,68,0.4)',
                     padding: '10px 20px',
                     fontWeight: 700,
                     fontSize: '12px',
@@ -178,196 +406,10 @@ export default function ProfilePage() {
                     cursor: 'pointer',
                   }}
                 >
-                  Edit Profile
+                  Sign Out
                 </button>
-              )}
+              </div>
             </div>
-
-            {/* Profile Form */}
-            <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {message && (
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '4px',
-                    fontSize: '13px',
-                    background: message.type === 'success' ? 'rgba(41,231,205,0.15)' : 'rgba(255,68,68,0.15)',
-                    color: message.type === 'success' ? '#29e7cd' : '#ff4444',
-                    border: `1px solid ${message.type === 'success' ? '#29e7cd' : '#ff4444'}`,
-                  }}
-                >
-                  {message.text}
-                </div>
-              )}
-
-              {/* Personal Information */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-                {/* Username - ALWAYS LOCKED */}
-                <div>
-                  <label style={labelStyle}>Username (Cannot be changed)</label>
-                  <input
-                    type="text"
-                    value={username}
-                    disabled
-                    style={disabledInputStyle}
-                  />
-                </div>
-
-                <div>
-                  <label style={labelStyle}>Full Name</label>
-                  <input
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    disabled={!isEditing}
-                    style={isEditing ? inputStyle : disabledInputStyle}
-                  />
-                </div>
-
-                {/* Gender - ALWAYS LOCKED */}
-                <div>
-                  <label style={labelStyle}>Gender (Cannot be changed)</label>
-                  <input
-                    type="text"
-                    value={gender || 'Not specified'}
-                    disabled
-                    style={disabledInputStyle}
-                  />
-                </div>
-
-                {/* Country Dropdown */}
-                <div>
-                  <label style={labelStyle}>Country</label>
-                  <select
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    disabled={!isEditing}
-                    style={{
-                      ...(isEditing ? inputStyle : disabledInputStyle),
-                      cursor: isEditing ? 'pointer' : 'not-allowed',
-                    }}
-                  >
-                    <option value="" style={optionStyle}>Select Country</option>
-                    {WORLD_COUNTRIES.map((c) => (
-                      <option key={c} value={c} style={optionStyle}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid var(--panel-border)', margin: '12px 0' }} />
-
-              {/* Social & Contact Information */}
-              <h3 className="display" style={{ fontSize: '16px', textTransform: 'uppercase' }}>
-                Contact & Social Handles
-              </h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-                <div>
-                  <label style={labelStyle}>Discord Username</label>
-                  <input
-                    type="text"
-                    placeholder="username#0000"
-                    value={discordUsername}
-                    onChange={(e) => setDiscordUsername(e.target.value)}
-                    disabled={!isEditing}
-                    style={isEditing ? inputStyle : disabledInputStyle}
-                  />
-                </div>
-
-                <div>
-                  <label style={labelStyle}>WhatsApp Username</label>
-                  <input
-                    type="text"
-                    placeholder="WhatsApp tag/name"
-                    value={whatsappUsername}
-                    onChange={(e) => setWhatsappUsername(e.target.value)}
-                    disabled={!isEditing}
-                    style={isEditing ? inputStyle : disabledInputStyle}
-                  />
-                </div>
-
-                <div>
-                  <label style={labelStyle}>WhatsApp Mobile Number</label>
-                  <input
-                    type="tel"
-                    placeholder="+254700000000"
-                    value={whatsappMobile}
-                    onChange={(e) => setWhatsappMobile(e.target.value)}
-                    disabled={!isEditing}
-                    style={isEditing ? inputStyle : disabledInputStyle}
-                  />
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                {isEditing ? (
-                  <>
-                    <button
-                      type="submit"
-                      disabled={updating}
-                      style={{
-                        background: 'var(--red)',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '12px 24px',
-                        fontWeight: 700,
-                        fontSize: '12px',
-                        textTransform: 'uppercase',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        opacity: updating ? 0.7 : 1,
-                      }}
-                    >
-                      {updating ? 'Saving...' : 'Save Profile'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsEditing(false);
-                        fetchProfile(); // Reset to current saved values
-                      }}
-                      style={{
-                        background: 'transparent',
-                        color: '#fff',
-                        border: '1px solid var(--panel-border)',
-                        padding: '12px 24px',
-                        fontWeight: 700,
-                        fontSize: '12px',
-                        textTransform: 'uppercase',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSignOut}
-                    style={{
-                      background: 'transparent',
-                      color: '#ff4444',
-                      border: '1px solid rgba(255,68,68,0.4)',
-                      padding: '12px 24px',
-                      fontWeight: 700,
-                      fontSize: '12px',
-                      textTransform: 'uppercase',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Sign Out
-                  </button>
-                )}
-              </div>
-            </form>
           </div>
         )}
       </section>
@@ -375,12 +417,47 @@ export default function ProfilePage() {
   );
 }
 
+const labelHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '6px',
+};
+
 const labelStyle: React.CSSProperties = {
-  display: 'block',
   fontSize: '12px',
   textTransform: 'uppercase',
   color: 'var(--muted)',
-  marginBottom: '6px',
+};
+
+const lockedTagStyle: React.CSSProperties = {
+  fontSize: '10px',
+  textTransform: 'uppercase',
+  color: 'var(--muted)',
+  opacity: 0.6,
+};
+
+const inlineEditBtnStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  color: '#29e7cd',
+  fontSize: '12px',
+  fontWeight: 700,
+  cursor: 'pointer',
+  textTransform: 'uppercase',
+  padding: 0,
+};
+
+const saveBtnStyle: React.CSSProperties = {
+  background: 'var(--red)',
+  color: '#fff',
+  border: 'none',
+  padding: '0 16px',
+  fontWeight: 700,
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  borderRadius: '4px',
+  cursor: 'pointer',
 };
 
 const inputStyle: React.CSSProperties = {
