@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
@@ -73,7 +74,7 @@ export default function WalletPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Balance Overview Card */}
+            {/* Balance Card */}
             <div
               style={{
                 background: 'linear-gradient(135deg, #131627 0%, #1a1e36 100%)',
@@ -97,24 +98,24 @@ export default function WalletPage() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  onClick={() => alert('Deposit modal / action triggered')}
+                <Link
+                  href="/wallet/deposit"
                   style={{
                     background: 'var(--red)',
                     color: '#fff',
-                    border: 'none',
                     padding: '10px 18px',
                     fontWeight: 700,
                     fontSize: '12px',
                     textTransform: 'uppercase',
                     borderRadius: '4px',
-                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    display: 'inline-block',
                   }}
                 >
                   Deposit
-                </button>
-                <button
-                  onClick={() => alert('Withdraw modal / action triggered')}
+                </Link>
+                <Link
+                  href="/wallet/withdraw"
                   style={{
                     background: 'transparent',
                     color: '#fff',
@@ -124,15 +125,16 @@ export default function WalletPage() {
                     fontSize: '12px',
                     textTransform: 'uppercase',
                     borderRadius: '4px',
-                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    display: 'inline-block',
                   }}
                 >
                   Withdraw
-                </button>
+                </Link>
               </div>
             </div>
 
-            {/* Transaction History Section */}
+            {/* Transactions Section */}
             <div>
               <h2 className="display" style={{ fontSize: '18px', textTransform: 'uppercase', marginBottom: '12px' }}>
                 Transaction History
