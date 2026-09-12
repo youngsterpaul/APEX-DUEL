@@ -41,15 +41,21 @@ export default function BottomNav() {
         className="bottom-nav"
         style={{
           position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 60,
-          background: 'rgba(10,11,20,0.96)',
-          backdropFilter: 'blur(10px)',
-          borderTop: '1px solid var(--panel-border)',
+          bottom: 16,
+          left: 16,
+          right: 16,
+          maxWidth: 480,
+          margin: '0 auto',
+          height: 64,
+          background: 'rgba(19, 22, 39, 0.92)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid var(--panel-border)',
+          borderRadius: 32,
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
           alignItems: 'center',
           justifyContent: 'space-around',
+          padding: '0 12px',
           zIndex: 40,
         }}
       >
