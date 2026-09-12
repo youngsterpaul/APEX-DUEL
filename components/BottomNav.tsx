@@ -5,7 +5,7 @@ import { getActiveChallenges } from '../lib/activeChallenges';
 import { supabase } from '../lib/supabaseClient';
 
 export default function BottomNav() {
-  const router = Router();
+  const router = useRouter();
   const [activeCount, setActiveCount] = useState<number>(0);
 
   useEffect(() => {
