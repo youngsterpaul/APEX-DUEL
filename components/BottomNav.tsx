@@ -7,16 +7,27 @@ export default function BottomNav() {
   const isActive = (path: string) => router.pathname === path;
 
   return (
-    <div className="mobile-bottom-nav">
-      <Link href="/active" className={`nav-link ${isActive('/active') ? 'active' : ''}`}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+    <nav className="mobile-bottom-nav">
+      {/* Home */}
+      <Link href="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
-        <span>Active</span>
+        <span>Home</span>
       </Link>
 
+      {/* My Active */}
+      <Link href="/active" className={`nav-link ${isActive('/active') ? 'active' : ''}`}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span>My Active</span>
+      </Link>
+
+      {/* Profile */}
       <Link href="/profile" className={`nav-link ${isActive('/profile') ? 'active' : ''}`}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
           <circle cx="12" cy="7" r="4"></circle>
         </svg>
@@ -30,15 +41,16 @@ export default function BottomNav() {
           bottom: 16px;
           left: 16px;
           right: 16px;
-          height: 56px;
+          height: 60px;
           background: var(--panel, #14172a);
           border: 1px solid var(--panel-border, #23273f);
-          border-radius: 16px;
-          z-index: 9999;
+          border-radius: 20px;
+          z-index: 99999;
           align-items: center;
           justify-content: space-around;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(41, 231, 205, 0.05);
-          backdrop-filter: blur(10px);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(41, 231, 205, 0.08);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
         }
 
         :global(.nav-link) {
@@ -53,7 +65,7 @@ export default function BottomNav() {
           font-size: 11px !important;
           font-weight: 700 !important;
           text-transform: uppercase !important;
-          letter-spacing: 0.05em !important;
+          letter-spacing: 0.04em !important;
           flex: 1 !important;
           height: 100% !important;
           transition: all 0.2s ease !important;
@@ -65,7 +77,7 @@ export default function BottomNav() {
 
         :global(.nav-link.active svg) {
           stroke: var(--red, #ff3b5c) !important;
-          filter: drop-shadow(0 0 6px rgba(255, 59, 92, 0.4));
+          filter: drop-shadow(0 0 8px rgba(255, 59, 92, 0.5));
         }
 
         @media (max-width: 768px) {
@@ -74,6 +86,6 @@ export default function BottomNav() {
           }
         }
       `}</style>
-    </div>
+    </nav>
   );
 }
