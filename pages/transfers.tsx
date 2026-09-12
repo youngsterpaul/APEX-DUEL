@@ -70,6 +70,9 @@ export default function MyTransfers() {
     setLoading(false);
   };
 
+  const pendingTransfers = rows.filter((r) => r.status === 'in_progress' || r.status === 'disputed');
+  const completedTransfers = rows.filter((r) => r.status === 'completed' || r.status === 'cancelled');
+
   return (
     <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
       <Head>
@@ -77,65 +80,112 @@ export default function MyTransfers() {
       </Head>
 
       <section style={{ maxWidth: 820, margin: '0 auto', padding: '48px 16px 80px' }}>
-        <h1 className="display" style={{ fontSize: 26, textTransform: 'uppercase', marginBottom: 20 }}>
+        <h1 className="display" style={{ fontSize: '26px', textTransform: 'uppercase', marginBottom: '8px' }}>
           My Transfers
         </h1>
+        <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '24px' }}>
+          Manage your active account purchases and transfer history.
+        </p>
 
         {loading ? (
-          <p style={{ color: 'var(--muted)' }}>Loading…</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton" style={{ height: '72px', borderRadius: '8px' }} />
+            ))}
+          </div>
         ) : rows.length === 0 ? (
-          <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
+          <div
+            style={{
+              background: '#131627',
+              border: '1px solid var(--panel-border)',
+              borderRadius: '8px',
+              padding: '40px',
+              textAlign: 'center',
+              color: 'var(--muted)',
+            }}
+          >
             No transfers yet. Buy or sell an account on the Marketplace to start one.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {rows.map((t) => {
-              const badge = getStatusInfo(t.status);
-              return (
-                <Link
-                  key={t.id}
-                  href={`/transfer/${t.id}`}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: 12,
-                    background: '#131627',
-                    border: '1px solid var(--panel-border)',
-                    borderRadius: 8,
-                    padding: 16,
-                    textDecoration: 'none',
-                    color: '#fff',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{t.listing_username || 'Account'}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {t.role === 'buyer' ? 'Buying from' : 'Selling to'} {t.other_party || 'unknown'} · ${t.price.toFixed(2)}
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      padding: '4px 10px',
-                      borderRadius: 12,
-                      background: badge.bg,
-                      color: badge.color,
-                      border: `1px solid ${badge.color}`,
-                    }}
-                  >
-                    {badge.label}
-                  </span>
-                </Link>
-              );
-            })}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {/* Pending Transfers Section */}
+            <div>
+              <h2 className="display" style={{ fontSize: '18px', textTransform: 'uppercase', marginBottom: '12px' }}>
+                Pending Transfers ({pendingTransfers.length})
+              </h2>
+              {pendingTransfers.length === 0 ? (
+                <p style={{ color: 'var(--muted)', fontSize: '13px' }}>No active or pending transfers.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {pendingTransfers.map((t) => (
+                    <TransferCard key={t.id} transfer={t} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Completed Transfers Section */}
+            <div>
+              <h2 className="display" style={{ fontSize: '18px', textTransform: 'uppercase', marginBottom: '12px' }}>
+                Completed & History ({completedTransfers.length})
+              </h2>
+              {completedTransfers.length === 0 ? (
+                <p style={{ color: 'var(--muted)', fontSize: '13px' }}>No past transfer history.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {completedTransfers.map((t) => (
+                    <TransferCard key={t.id} transfer={t} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
     </div>
+  );
+}
+
+function TransferCard({ transfer: t }: { transfer: Row }) {
+  const badge = getStatusInfo(t.status);
+  return (
+    <Link
+      href={`/transfer/${t.id}`}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '12px',
+        background: '#131627',
+        border: '1px solid var(--panel-border)',
+        borderRadius: '8px',
+        padding: '16px',
+        textDecoration: 'none',
+        color: '#fff',
+        flexWrap: 'wrap',
+      }}
+    >
+      <div>
+        <div style={{ fontWeight: 700, fontSize: '14px' }}>{t.listing_username || 'Account'}</div>
+        <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>
+          {t.role === 'buyer' ? 'Buying from' : 'Selling to'} {t.other_party || 'unknown'} · ${t.price.toFixed(2)}
+        </div>
+      </div>
+      <span
+        style={{
+          fontSize: '10px',
+          fontWeight: 800,
+          textTransform: 'uppercase',
+          padding: '4px 10px',
+          borderRadius: '12px',
+          background: badge.bg,
+          color: badge.color,
+          border: `1px solid ${badge.color}`,
+        }}
+      >
+        {badge.label}
+      </span>
+    </Link>
   );
 }
 

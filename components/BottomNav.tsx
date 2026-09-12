@@ -29,7 +29,7 @@ export default function BottomNav() {
         bottom: 0,
         left: 0,
         right: 0,
-        height: 60,
+        height: '60px',
         background: 'rgba(10,11,20,0.96)',
         backdropFilter: 'blur(10px)',
         borderTop: '1px solid var(--panel-border)',
@@ -40,26 +40,26 @@ export default function BottomNav() {
       }}
     >
       <Link href="/" style={navItemStyle(router.pathname === '/')}>
-        <span style={{ fontSize: 18 }}>🏠</span>
-        <span style={{ fontSize: 10 }}>Home</span>
+        <span style={{ fontSize: '18px' }}>🏠</span>
+        <span style={{ fontSize: '10px' }}>Home</span>
       </Link>
 
       <Link href="/active" style={navItemStyle(router.pathname === '/active')}>
         <div style={{ position: 'relative', display: 'inline-flex' }}>
-          <span style={{ fontSize: 18 }}>⚡</span>
+          <span style={{ fontSize: '18px' }}>⚡</span>
           {activeCount > 0 && (
             <span
               style={{
                 position: 'absolute',
-                top: -4,
-                right: -8,
+                top: '-4px',
+                right: '-8px',
                 background: 'var(--red)',
                 color: '#fff',
-                fontSize: 9,
+                fontSize: '9px',
                 fontWeight: 800,
-                borderRadius: 999,
-                minWidth: 14,
-                height: 14,
+                borderRadius: '999px',
+                minWidth: '14px',
+                height: '14px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -70,17 +70,17 @@ export default function BottomNav() {
             </span>
           )}
         </div>
-        <span style={{ fontSize: 10 }}>Active</span>
+        <span style={{ fontSize: '10px' }}>Active</span>
       </Link>
 
-      <Link href="/transfer" style={navItemStyle(router.pathname === '/transfer')}>
-        <span style={{ fontSize: 18 }}>💸</span>
-        <span style={{ fontSize: 10 }}>Transfer</span>
+      <Link href="/transfer" style={navItemStyle(router.pathname.startsWith('/transfer'))}>
+        <span style={{ fontSize: '18px' }}>🔄</span>
+        <span style={{ fontSize: '10px' }}>Transfer</span>
       </Link>
 
       <Link href="/wallet" style={navItemStyle(router.pathname === '/wallet')}>
-        <span style={{ fontSize: 18 }}>💳</span>
-        <span style={{ fontSize: 10 }}>Wallet</span>
+        <span style={{ fontSize: '18px' }}>💳</span>
+        <span style={{ fontSize: '10px' }}>Wallet</span>
       </Link>
     </div>
   );
@@ -90,7 +90,7 @@ const navItemStyle = (isActive: boolean): React.CSSProperties => ({
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  gap: 2,
+  gap: '2px',
   color: isActive ? 'var(--red)' : 'var(--muted)',
   textDecoration: 'none',
   fontWeight: isActive ? 700 : 500,
