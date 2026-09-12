@@ -65,26 +65,26 @@ export default function Header() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            justify-content: 'space-between',
-            height: 72,
+            justifyContent: 'space-between',
+            height: '72px',
             padding: '0 16px',
             maxWidth: '100%',
           }}
         >
           {/* Home Logo */}
-          <Link href="/" className="display" style={{ fontSize: 22, fontWeight: 800, textDecoration: 'none', color: '#fff', letterSpacing: '0.02em' }}>
+          <Link href="/" className="display" style={{ fontSize: '22px', fontWeight: 800, textDecoration: 'none', color: '#fff', letterSpacing: '0.02em' }}>
             APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="desktop-nav" style={{ gap: 28, alignItems: 'center' }}>
+          <nav className="desktop-nav" style={{ gap: '28px', alignItems: 'center' }}>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 style={{
                   fontWeight: 600,
-                  fontSize: 14,
+                  fontSize: '14px',
                   color: router.pathname === link.href ? '#fff' : 'var(--muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
@@ -96,7 +96,7 @@ export default function Header() {
             ))}
           </nav>
 
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {/* Cart */}
             <button
               onClick={() => setCartOpen(true)}
@@ -105,14 +105,14 @@ export default function Header() {
                 position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
-                justify-content: 'center',
-                width: 38,
-                height: 38,
-                borderRadius: 4,
+                justifyContent: 'center',
+                width: '38px',
+                height: '38px',
+                borderRadius: '4px',
                 border: '1px solid var(--panel-border)',
                 background: 'transparent',
                 color: '#fff',
-                fontSize: 16,
+                fontSize: '16px',
                 cursor: 'pointer',
               }}
             >
@@ -121,18 +121,18 @@ export default function Header() {
                 <span
                   style={{
                     position: 'absolute',
-                    top: -6,
-                    right: -6,
+                    top: '-6px',
+                    right: '-6px',
                     background: 'var(--red)',
                     color: '#fff',
-                    fontSize: 10,
+                    fontSize: '10px',
                     fontWeight: 700,
-                    borderRadius: 999,
-                    minWidth: 16,
-                    height: 16,
+                    borderRadius: '999px',
+                    minWidth: '16px',
+                    height: '16px',
                     display: 'flex',
                     alignItems: 'center',
-                    justify-content: 'center',
+                    justifyContent: 'center',
                     padding: '0 4px',
                   }}
                 >
@@ -149,11 +149,11 @@ export default function Header() {
                 color: '#fff',
                 padding: '8px 14px',
                 fontWeight: 700,
-                fontSize: 12,
+                fontSize: '12px',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
                 textDecoration: 'none',
-                borderRadius: 2,
+                borderRadius: '2px',
                 transform: 'skewX(-10deg)',
                 display: 'inline-block',
                 boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
@@ -171,20 +171,20 @@ export default function Header() {
                 color: '#fff',
                 padding: '8px 10px',
                 cursor: 'pointer',
-                borderRadius: 4,
+                borderRadius: '4px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 4,
+                gap: '4px',
                 justifyContent: 'center',
                 alignItems: 'center',
-                height: 38,
-                width: 42,
+                height: '38px',
+                width: '42px',
               }}
               aria-label="Open Menu"
             >
-              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
-              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
-              <span style={{ width: 18, height: 2, background: '#fff' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
             </button>
           </div>
         </div>
@@ -201,7 +201,7 @@ export default function Header() {
             WebkitOverflowScrolling: 'touch',
           }}
         >
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             {navLinks.map((link) => {
               const isActive = router.pathname === link.href;
               const isHomeLink = link.href === '/';
@@ -213,13 +213,13 @@ export default function Header() {
                   className={isHomeLink ? 'mobile-home-nav-item' : ''}
                   style={{
                     fontWeight: 700,
-                    fontSize: 12,
+                    fontSize: '12px',
                     color: isActive ? 'var(--red)' : '#ccc',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                     textDecoration: 'none',
                     padding: '4px 10px',
-                    borderRadius: 4,
+                    borderRadius: '4px',
                     background: isActive ? 'rgba(255,59,92,0.12)' : 'transparent',
                     border: isActive ? '1px solid rgba(255,59,92,0.3)' : '1px solid transparent',
                     flexShrink: 0,
