@@ -65,7 +65,7 @@ export default function Header() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justify-content: 'space-between',
             height: 72,
             padding: '0 16px',
             maxWidth: '100%',
@@ -105,7 +105,7 @@ export default function Header() {
                 position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justify-content: 'center',
                 width: 38,
                 height: 38,
                 borderRadius: 4,
@@ -132,7 +132,7 @@ export default function Header() {
                     height: 16,
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    justify-content: 'center',
                     padding: '0 4px',
                   }}
                 >
@@ -189,7 +189,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Sub-Header Navigation Bar (Appears on ALL pages automatically) */}
+        {/* Mobile Sub-Header Navigation Bar */}
         <div
           className="mobile-subnav"
           style={{
@@ -204,10 +204,13 @@ export default function Header() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             {navLinks.map((link) => {
               const isActive = router.pathname === link.href;
+              const isHomeLink = link.href === '/';
+
               return (
                 <Link
                   key={link.href}
                   href={link.href}
+                  className={isHomeLink ? 'mobile-home-nav-item' : ''}
                   style={{
                     fontWeight: 700,
                     fontSize: 12,
@@ -237,6 +240,13 @@ export default function Header() {
         }
         .mobile-subnav {
           display: block;
+        }
+
+        /* Hide Home link from top sub-nav on small screens (max 768px) */
+        @media (max-width: 768px) {
+          .mobile-home-nav-item {
+            display: none !important;
+          }
         }
 
         @media (min-width: 900px) {
