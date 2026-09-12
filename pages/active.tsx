@@ -64,7 +64,7 @@ export default function ActiveChallenges() {
           My Active Challenges
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 8 }}>
-          Everything you're currently part of — duels, tournaments, and leagues.
+          Everything you're currently part of — duels, tournaments, and leagues ({items.length}).
         </p>
       </section>
 
@@ -86,7 +86,7 @@ export default function ActiveChallenges() {
             {duels.length > 0 && (
               <div>
                 <h2 className="display" style={{ fontSize: 20, marginBottom: 14, textTransform: 'uppercase' }}>
-                  1v1 Duels
+                  1v1 Duels ({duels.length})
                 </h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {duels.map((d: any) => (
@@ -109,7 +109,7 @@ export default function ActiveChallenges() {
             {tournaments.length > 0 && (
               <div>
                 <h2 className="display" style={{ fontSize: 20, marginBottom: 14, textTransform: 'uppercase' }}>
-                  Tournaments
+                  Tournaments ({tournaments.length})
                 </h2>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {tournaments.map((t: any) => (
@@ -132,7 +132,7 @@ export default function ActiveChallenges() {
             {leagues.length > 0 && (
               <div>
                 <h2 className="display" style={{ fontSize: 20, marginBottom: 14, textTransform: 'uppercase' }}>
-                  Leagues
+                  Leagues ({leagues.length})
                 </h2>
                 {message && <p style={{ fontSize: 13, color: 'var(--cyan)', marginBottom: 10 }}>{message}</p>}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

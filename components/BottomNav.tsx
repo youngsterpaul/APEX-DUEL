@@ -1,91 +1,97 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
+import { getActiveChallenges } from '../lib/activeChallenges';
+import { supabase } from '../lib/supabaseClient';
 
 export default function BottomNav() {
-  const router = useRouter();
+  const router = Router();
+  const [activeCount, setActiveCount] = useState<number>(0);
 
-  const isActive = (path: string) => router.pathname === path;
+  useEffect(() => {
+    async function fetchCount() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setActiveCount(0);
+        return;
+      }
+      const activeItems = await getActiveChallenges();
+      setActiveCount(activeItems.length);
+    }
+
+    fetchCount();
+  }, [router.pathname]);
 
   return (
-    <nav className="mobile-bottom-nav">
-      {/* Home */}
-      <Link href="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-          <polyline points="9 22 9 12 15 12 15 22"></polyline>
-        </svg>
-        <span>Home</span>
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 60,
+        background: 'rgba(10,11,20,0.96)',
+        backdropFilter: 'blur(10px)',
+        borderTop: '1px solid var(--panel-border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        zIndex: 40,
+      }}
+    >
+      <Link href="/" style={navItemStyle(router.pathname === '/')}>
+        <span style={{ fontSize: 18 }}>🏠</span>
+        <span style={{ fontSize: 10 }}>Home</span>
       </Link>
 
-      {/* My Active */}
-      <Link href="/active" className={`nav-link ${isActive('/active') ? 'active' : ''}`}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-        <span>My Active</span>
+      <Link href="/active" style={navItemStyle(router.pathname === '/active')}>
+        <div style={{ position: 'relative', display: 'inline-flex' }}>
+          <span style={{ fontSize: 18 }}>⚡</span>
+          {activeCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -8,
+                background: 'var(--red)',
+                color: '#fff',
+                fontSize: 9,
+                fontWeight: 800,
+                borderRadius: 999,
+                minWidth: 14,
+                height: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 3px',
+              }}
+            >
+              {activeCount}
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: 10 }}>Active</span>
       </Link>
 
-      {/* Profile */}
-      <Link href="/profile" className={`nav-link ${isActive('/profile') ? 'active' : ''}`}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        <span>Profile</span>
+      <Link href="/transfer" style={navItemStyle(router.pathname === '/transfer')}>
+        <span style={{ fontSize: 18 }}>💸</span>
+        <span style={{ fontSize: 10 }}>Transfer</span>
       </Link>
 
-      <style jsx>{`
-        .mobile-bottom-nav {
-          display: none;
-          position: fixed;
-          bottom: 16px;
-          left: 16px;
-          right: 16px;
-          height: 60px;
-          background: var(--panel, #14172a);
-          border: 1px solid var(--panel-border, #23273f);
-          border-radius: 20px;
-          z-index: 99999;
-          align-items: center;
-          justify-content: space-around;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(41, 231, 205, 0.08);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-        }
-
-        :global(.nav-link) {
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 3px !important;
-          color: var(--muted, #7d82a6) !important;
-          text-decoration: none !important;
-          font-family: 'Rajdhani', sans-serif !important;
-          font-size: 11px !important;
-          font-weight: 700 !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.04em !important;
-          flex: 1 !important;
-          height: 100% !important;
-          transition: all 0.2s ease !important;
-        }
-
-        :global(.nav-link.active) {
-          color: var(--red, #ff3b5c) !important;
-        }
-
-        :global(.nav-link.active svg) {
-          stroke: var(--red, #ff3b5c) !important;
-          filter: drop-shadow(0 0 8px rgba(255, 59, 92, 0.5));
-        }
-
-        @media (max-width: 768px) {
-          .mobile-bottom-nav {
-            display: flex !important;
-          }
-        }
-      `}</style>
-    </nav>
+      <Link href="/wallet" style={navItemStyle(router.pathname === '/wallet')}>
+        <span style={{ fontSize: 18 }}>💳</span>
+        <span style={{ fontSize: 10 }}>Wallet</span>
+      </Link>
+    </div>
   );
 }
+
+const navItemStyle = (isActive: boolean): React.CSSProperties => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 2,
+  color: isActive ? 'var(--red)' : 'var(--muted)',
+  textDecoration: 'none',
+  fontWeight: isActive ? 700 : 500,
+});

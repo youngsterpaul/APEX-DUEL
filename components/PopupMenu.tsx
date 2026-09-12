@@ -4,7 +4,7 @@ interface PopupMenuProps {
   isOpen: boolean;
   onClose: () => void;
   user: any;
-  isAdmin?: boolean;
+  isAdmin: boolean;
   onSignOut: () => void;
 }
 
@@ -13,130 +13,64 @@ export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }:
 
   return (
     <div
-      onClick={onClose}
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(10,11,20,0.75)',
-        backdropFilter: 'blur(4px)',
         zIndex: 100,
+        background: 'rgba(0,0,0,0.75)',
+        backdropFilter: 'blur(6px)',
         display: 'flex',
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
+        alignItems: 'flex-start', // Align to top
+        paddingTop: 16,
       }}
+      onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 280,
-          maxWidth: '85vw',
-          height: '100%',
-          background: '#0f1120',
-          borderLeft: '1px solid var(--panel-border)',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 24,
+          width: 'calc(100% - 32px)',
+          maxWidth: 420,
+          background: '#131627',
+          border: '1px solid var(--panel-border)',
+          borderRadius: 12,
+          padding: 20,
+          boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+          animation: 'slideFromTop 0.25s ease-out',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="display" style={{ fontSize: 18, fontWeight: 800 }}>
-            APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Menu</h3>
           <button
             onClick={onClose}
-            aria-label="Close menu"
             style={{
               background: 'transparent',
               border: 'none',
               color: '#fff',
-              fontSize: 22,
+              fontSize: 20,
               cursor: 'pointer',
-              lineHeight: 1,
             }}
           >
-            ×
+            ✕
           </button>
         </div>
 
-        <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--panel-border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Link href="/transfer" onClick={onClose} style={menuLinkStyle}>
+            💸 Transfer Funds
+          </Link>
+
           {user ? (
             <>
-              <Link
-                href="/profile"
-                onClick={onClose}
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '10px 14px',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  textTransform: 'uppercase',
-                  borderRadius: 4,
-                  marginBottom: 10,
-                  textDecoration: 'none',
-                }}
-              >
-                My Profile
+              <Link href="/profile" onClick={onClose} style={menuLinkStyle}>
+                👤 Profile
               </Link>
-              <Link
-                href="/active"
-                onClick={onClose}
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '10px 14px',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  textTransform: 'uppercase',
-                  borderRadius: 4,
-                  marginBottom: 10,
-                  textDecoration: 'none',
-                }}
-              >
-                My Active
-              </Link>
-              <Link
-                href="/history"
-                onClick={onClose}
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  border: '1px solid var(--panel-border)',
-                  color: '#fff',
-                  padding: '10px 14px',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  textTransform: 'uppercase',
-                  borderRadius: 4,
-                  marginBottom: 10,
-                  textDecoration: 'none',
-                }}
-              >
-                My History
+              <Link href="/wallet" onClick={onClose} style={menuLinkStyle}>
+                💳 Wallet
               </Link>
               {isAdmin && (
-                <Link
-                  href="/admin"
-                  onClick={onClose}
-                  style={{
-                    display: 'block',
-                    textAlign: 'center',
-                    border: '1px solid var(--panel-border)',
-                    color: '#fff',
-                    padding: '10px 14px',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    textTransform: 'uppercase',
-                    borderRadius: 4,
-                    marginBottom: 10,
-                    textDecoration: 'none',
-                  }}
-                >
-                  Admin Panel
+                <Link href="/admin" onClick={onClose} style={{ ...menuLinkStyle, color: 'var(--red)' }}>
+                  ⚙️ Admin Dashboard
                 </Link>
               )}
               <button
@@ -145,42 +79,48 @@ export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }:
                   onClose();
                 }}
                 style={{
-                  width: '100%',
+                  ...menuLinkStyle,
                   background: 'transparent',
-                  border: '1px solid var(--red)',
-                  color: 'var(--red)',
-                  padding: '10px 14px',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  textTransform: 'uppercase',
-                  borderRadius: 4,
+                  border: 'none',
+                  textAlign: 'left',
                   cursor: 'pointer',
+                  width: '100%',
                 }}
               >
-                Sign Out
+                🚪 Sign Out
               </button>
             </>
           ) : (
-            <Link
-              href="/login"
-              onClick={onClose}
-              style={{
-                display: 'block',
-                textAlign: 'center',
-                background: 'var(--red)',
-                color: '#fff',
-                padding: '10px 14px',
-                fontWeight: 700,
-                fontSize: 13,
-                textTransform: 'uppercase',
-                borderRadius: 4,
-              }}
-            >
-              Sign In
+            <Link href="/auth" onClick={onClose} style={menuLinkStyle}>
+              🔑 Sign In / Register
             </Link>
           )}
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes slideFromTop {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
+
+const menuLinkStyle: React.CSSProperties = {
+  display: 'block',
+  padding: '12px 14px',
+  background: 'rgba(255,255,255,0.04)',
+  borderRadius: 6,
+  color: '#fff',
+  textDecoration: 'none',
+  fontSize: 14,
+  fontWeight: 600,
+};
