@@ -37,14 +37,14 @@ export default function Header() {
         alignItems: 'center',
       }}
     >
-      {/* Left: Brand Logo */}
+      {/* Left Column: Brand Logo */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
         <Link href="/" style={{ textDecoration: 'none', color: '#fff', fontWeight: 800, fontSize: '20px' }}>
           APEX<span style={{ color: 'var(--red)' }}>DUEL</span>
         </Link>
       </div>
 
-      {/* Center: Quick Nav */}
+      {/* Center Column: Quick Nav */}
       <nav
         className="desktop-quick-nav"
         style={{
@@ -68,7 +68,7 @@ export default function Header() {
         </Link>
       </nav>
 
-      {/* Right: Account / Profile Links */}
+      {/* Right Column: Profile / Login Action */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '16px' }}>
         {user ? (
           <Link href="/profile" style={profileBtnStyle}>
