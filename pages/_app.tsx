@@ -3,9 +3,13 @@ import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ActiveChallengesButton from '../components/ActiveChallengesButton';
+import BottomNav from '../components/BottomNav';
 import { CartProvider } from '../lib/cartContext';
 
 export default function App({ Component, pageProps }: AppProps) {
+  // Extract user from pageProps if available
+  const { user } = pageProps;
+
   return (
     <CartProvider>
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -15,6 +19,7 @@ export default function App({ Component, pageProps }: AppProps) {
         </main>
         <Footer />
         <ActiveChallengesButton />
+        <BottomNav user={user} />
       </div>
     </CartProvider>
   );
