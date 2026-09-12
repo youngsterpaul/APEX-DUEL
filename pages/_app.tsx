@@ -1,33 +1,22 @@
-// components/BottomNav.tsx
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-interface BottomNavProps {
-  user?: any;
-}
-
-export default function BottomNav({ user }: BottomNavProps) {
+export default function BottomNav() {
   const router = useRouter();
 
   const isActive = (path: string) => router.pathname === path;
 
   return (
-    <div className="mobile-bottom-nav">
-      <Link 
-        href="/active" 
-        className={`nav-item ${isActive('/active') ? 'active' : ''}`}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <nav className="mobile-bottom-bar">
+      <Link href="/active" className={`nav-link ${isActive('/active') ? 'active' : ''}`}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
         <span>Active</span>
       </Link>
 
-      <Link 
-        href="/profile" 
-        className={`nav-item ${isActive('/profile') ? 'active' : ''}`}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Link href="/profile" className={`nav-link ${isActive('/profile') ? 'active' : ''}`}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
           <circle cx="12" cy="7" r="4"></circle>
         </svg>
@@ -35,47 +24,52 @@ export default function BottomNav({ user }: BottomNavProps) {
       </Link>
 
       <style jsx>{`
-        .mobile-bottom-nav {
+        .mobile-bottom-bar {
           display: none;
           position: fixed;
           bottom: 0;
           left: 0;
           right: 0;
-          height: 60px;
+          height: 64px;
           background: #0f1120;
-          border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
-          z-index: 99999; /* Higher z-index to stay above other fixed elements */
+          border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+          z-index: 99999;
+          align-items: center;
           justify-content: space-around;
-          align-items: center;
           padding-bottom: env(safe-area-inset-bottom);
+          box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
         }
 
-        .nav-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 4px;
-          color: #8a8d9b;
-          text-decoration: none;
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          flex: 1;
-          height: 100%;
-          transition: color 0.2s ease;
+        :global(.nav-link) {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 4px !important;
+          color: #8a8d9b !important;
+          text-decoration: none !important;
+          font-size: 11px !important;
+          font-weight: 700 !important;
+          text-transform: uppercase !important;
+          flex: 1 !important;
+          height: 100% !important;
+          transition: color 0.15s ease !important;
         }
 
-        .nav-item.active {
-          color: var(--red, #ff3e3e);
+        :global(.nav-link.active) {
+          color: var(--red, #ff3e3e) !important;
+        }
+
+        :global(.nav-link svg) {
+          color: inherit !important;
         }
 
         @media (max-width: 768px) {
-          .mobile-bottom-nav {
+          .mobile-bottom-bar {
             display: flex !important;
           }
         }
       `}</style>
-    </div>
+    </nav>
   );
 }
