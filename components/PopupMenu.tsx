@@ -57,7 +57,7 @@ export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }:
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Link href="/transfers" onClick={onClose} style={menuLinkStyle}>
-            💸 Transfer
+            🔄 Transfer
           </Link>
 
           {user ? (
