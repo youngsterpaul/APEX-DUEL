@@ -48,6 +48,8 @@ interface LeagueRow {
   starts_at: string | null;
 }
 
+const PAGE_SIZE = 5;
+
 export default function SingleGameHubPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -58,6 +60,12 @@ export default function SingleGameHubPage() {
   const [duels, setDuels] = useState<DuelRow[]>([]);
   const [tournaments, setTournaments] = useState<TournamentRow[]>([]);
   const [leagues, setLeagues] = useState<LeagueRow[]>([]);
+
+  // Pagination states for each section
+  const [marketPage, setMarketPage] = useState(0);
+  const [duelPage, setDuelPage] = useState(0);
+  const [tournamentPage, setTournamentPage] = useState(0);
+  const [leaguePage, setLeaguePage] = useState(0);
   
   const [joinedTournamentIds, setJoinedTournamentIds] = useState<Set<string>>(new Set());
   const [joinedLeagueIds, setJoinedLeagueIds] = useState<Set<string>>(new Set());
@@ -245,6 +253,12 @@ export default function SingleGameHubPage() {
 
   const totalChallenges = duels.length + tournaments.length + leagues.length;
 
+  // Sliced datasets for 5 items per page
+  const visibleMarketListings = marketListings.slice(marketPage * PAGE_SIZE, (marketPage + 1) * PAGE_SIZE);
+  const visibleDuels = duels.slice(duelPage * PAGE_SIZE, (duelPage + 1) * PAGE_SIZE);
+  const visibleTournaments = tournaments.slice(tournamentPage * PAGE_SIZE, (tournamentPage + 1) * PAGE_SIZE);
+  const visibleLeagues = leagues.slice(leaguePage * PAGE_SIZE, (leaguePage + 1) * PAGE_SIZE);
+
   return (
     <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
       <Head>
@@ -332,12 +346,18 @@ export default function SingleGameHubPage() {
         </div>
 
         {/* Marketplace Accounts for this Game */}
-        <GameSection title={`Marketplace Accounts (${marketListings.length})`}>
-          {marketListings.length === 0 ? (
+        <GameSection
+          title={`Marketplace Accounts (${marketListings.length})`}
+          currentPage={marketPage}
+          totalItems={marketListings.length}
+          onPrev={() => setMarketPage((prev) => Math.max(prev - 1, 0))}
+          onNext={() => setMarketPage((prev) => prev + 1)}
+        >
+          {visibleMarketListings.length === 0 ? (
             <EmptyRow text={`No accounts on sale for ${game.title} right now.`} />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, padding: 16 }}>
-              {marketListings.map((item) => (
+              {visibleMarketListings.map((item) => (
                 <Link key={item.id} href={`/markets/${item.id}`} style={marketCardStyle}>
                   {item.image_url && (
                     <img src={item.image_url} alt={item.title} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 4 }} />
@@ -352,11 +372,17 @@ export default function SingleGameHubPage() {
         </GameSection>
 
         {/* 1v1 Duels */}
-        <GameSection title="1v1 Duels">
-          {duels.length === 0 ? (
+        <GameSection
+          title={`1v1 Duels (${duels.length})`}
+          currentPage={duelPage}
+          totalItems={duels.length}
+          onPrev={() => setDuelPage((prev) => Math.max(prev - 1, 0))}
+          onNext={() => setDuelPage((prev) => prev + 1)}
+        >
+          {visibleDuels.length === 0 ? (
             <EmptyRow text={`No open 1v1 matches for ${game.title} yet.`} />
           ) : (
-            duels.map((d) => {
+            visibleDuels.map((d) => {
               const isOwn = session && d.player1_id === session.user.id;
               const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/duel/${d.id}`;
               const codeCopied = copiedId === `code-${d.id}`;
@@ -395,11 +421,17 @@ export default function SingleGameHubPage() {
         </GameSection>
 
         {/* Tournaments */}
-        <GameSection title="Tournaments">
-          {tournaments.length === 0 ? (
+        <GameSection
+          title={`Tournaments (${tournaments.length})`}
+          currentPage={tournamentPage}
+          totalItems={tournaments.length}
+          onPrev={() => setTournamentPage((prev) => Math.max(prev - 1, 0))}
+          onNext={() => setTournamentPage((prev) => prev + 1)}
+        >
+          {visibleTournaments.length === 0 ? (
             <EmptyRow text={`No tournaments for ${game.title} yet.`} />
           ) : (
-            tournaments.map((t) => {
+            visibleTournaments.map((t) => {
               const count = tournamentCounts[t.id] || 0;
               const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/tournaments/${t.id}`;
               const linkCopied = copiedId === `link-${t.id}`;
@@ -429,11 +461,17 @@ export default function SingleGameHubPage() {
         </GameSection>
 
         {/* Leagues */}
-        <GameSection title="Leagues">
-          {leagues.length === 0 ? (
+        <GameSection
+          title={`Leagues (${leagues.length})`}
+          currentPage={leaguePage}
+          totalItems={leagues.length}
+          onPrev={() => setLeaguePage((prev) => Math.max(prev - 1, 0))}
+          onNext={() => setLeaguePage((prev) => prev + 1)}
+        >
+          {visibleLeagues.length === 0 ? (
             <EmptyRow text={`No leagues for ${game.title} yet.`} />
           ) : (
-            leagues.map((l) => {
+            visibleLeagues.map((l) => {
               const count = leagueCounts[l.id] || 0;
               const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/leagues/${l.id}`;
               const linkCopied = copiedId === `link-${l.id}`;
@@ -464,12 +502,36 @@ export default function SingleGameHubPage() {
   );
 }
 
-function GameSection({ title, children }: { title: string; children: React.ReactNode }) {
+interface GameSectionProps {
+  title: string;
+  currentPage: number;
+  totalItems: number;
+  onPrev: () => void;
+  onNext: () => void;
+  children: React.ReactNode;
+}
+
+function GameSection({ title, currentPage, totalItems, onPrev, onNext, children }: GameSectionProps) {
+  const hasPrev = currentPage > 0;
+  const hasNext = (currentPage + 1) * PAGE_SIZE < totalItems;
+
   return (
     <div>
-      <h2 className="display" style={{ fontSize: 20, marginBottom: 14, textTransform: 'uppercase' }}>
-        {title}
-      </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <h2 className="display" style={{ fontSize: 20, margin: 0, textTransform: 'uppercase' }}>
+          {title}
+        </h2>
+        {totalItems > PAGE_SIZE && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onPrev} disabled={!hasPrev} style={{ ...navBtnStyle, opacity: hasPrev ? 1 : 0.4, cursor: hasPrev ? 'pointer' : 'not-allowed' }}>
+              ← Previous 5
+            </button>
+            <button onClick={onNext} disabled={!hasNext} style={{ ...navBtnStyle, opacity: hasNext ? 1 : 0.4, cursor: hasNext ? 'pointer' : 'not-allowed' }}>
+              Next 5 →
+            </button>
+          </div>
+        )}
+      </div>
       <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, overflow: 'hidden' }}>
         {children}
       </div>
@@ -480,6 +542,16 @@ function GameSection({ title, children }: { title: string; children: React.React
 function EmptyRow({ text }: { text: string }) {
   return <div style={{ padding: 16, fontSize: 13, color: 'var(--muted)' }}>{text}</div>;
 }
+
+const navBtnStyle: React.CSSProperties = {
+  background: '#0a0b14',
+  border: '1px solid var(--panel-border)',
+  color: '#fff',
+  padding: '6px 12px',
+  fontSize: 12,
+  fontWeight: 700,
+  borderRadius: 4,
+};
 
 const actionHeaderBtnStyle: React.CSSProperties = {
   background: 'var(--red)',
