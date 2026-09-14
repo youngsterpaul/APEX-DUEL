@@ -91,7 +91,7 @@ export default function PopupMenu({ isOpen, onClose, user, isAdmin, onSignOut }:
               </button>
             </>
           ) : (
-            <Link href="/auth" onClick={onClose} style={menuLinkStyle}>
+            <Link href="/loin" onClick={onClose} style={menuLinkStyle}>
               🔑 Sign In / Register
             </Link>
           )}
