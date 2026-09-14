@@ -12,6 +12,7 @@ interface Profile {
   avatar_url?: string | null;
   whatsapp_username?: string | null;
   whatsapp_phone?: string | null;
+  balance?: number;
 }
 
 interface PendingRequest {
@@ -76,7 +77,7 @@ export default function DuelChatPage() {
     } = await supabase.auth.getSession();
 
     const [{ data: profilesData }, { data: messagesData }] = await Promise.all([
-      supabase.from('profiles').select('id, username, avatar_url, whatsapp_username, whatsapp_phone').in('id', profileIds),
+      supabase.from('profiles').select('id, username, avatar_url, whatsapp_username, whatsapp_phone, balance').in('id', profileIds),
       duelData.player2_id && sess && (sess.user.id === duelData.player1_id || sess.user.id === duelData.player2_id)
         ? supabase.from('duel_messages').select('*').eq('duel_id', id).order('created_at', { ascending: true })
         : Promise.resolve({ data: [] as DuelMessage[] }),
@@ -88,7 +89,6 @@ export default function DuelChatPage() {
     }
     if (messagesData) setMessages(messagesData as DuelMessage[]);
 
-    // Join requests: my own pending/declined status, or — if I'm the host — everyone else's pending requests.
     if (sess && duelData.join_mode === 'approval') {
       if (sess.user.id === duelData.player1_id) {
         const { data: reqs } = await supabase
@@ -139,6 +139,21 @@ export default function DuelChatPage() {
     setBusy(false);
     if (joinErr) {
       setJoinMessage({ type: 'error', text: joinErr.message });
+      return;
+    }
+    fetchAll();
+  };
+
+  const handleCancel = async () => {
+    if (typeof id !== 'string') return;
+    const ok = window.confirm('Are you sure you want to cancel this match? Entry fees will be refunded.');
+    if (!ok) return;
+    setBusy(true);
+    setError(null);
+    const { error: err } = await supabase.rpc('cancel_duel', { p_duel_id: id });
+    setBusy(false);
+    if (err) {
+      setError(err.message);
       return;
     }
     fetchAll();
@@ -276,7 +291,7 @@ export default function DuelChatPage() {
               <span style={{ fontSize: 12, color: 'var(--muted)' }}>
                 Hosted by <strong style={{ color: '#fff' }}>{player1?.username || 'a player'}</strong>
                 {opponent && <> · vs <strong style={{ color: '#fff' }}>{opponent.username || 'opponent'}</strong></>}
-                {!duel.player2_id && ' · Waiting for an opponent to join…'}
+                {!duel.player2_id && duel.status !== 'cancelled' && ' · Waiting for an opponent to join…'}
               </span>
               {duel.scheduled_at && (
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
@@ -293,28 +308,83 @@ export default function DuelChatPage() {
           </div>
         </div>
 
-        {/* Countdown to the match's end time */}
-        {duel.ends_at && (() => {
-          const msLeft = new Date(duel.ends_at).getTime() - now;
-          const expired = msLeft <= 0;
-          const days = Math.floor(Math.max(0, msLeft) / 86400000);
-          return (
-            <div
-              style={{
-                marginTop: 12,
-                padding: '10px 14px',
-                background: expired ? 'rgba(255,68,68,0.1)' : 'rgba(41,231,205,0.08)',
-                border: `1px solid ${expired ? '#ff4444' : 'var(--panel-border)'}`,
-                borderRadius: 6,
-                fontSize: 12,
-                color: expired ? '#ff4444' : 'var(--muted)',
-              }}
+        {/* Cancellation Option for Creator if no opponent has joined */}
+        {isP1 && !duel.player2_id && duel.status === 'scheduled' && (
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleCancel}
+              disabled={busy}
+              style={dangerBtn}
             >
-              ⏱ {expired
-                ? 'Match end time has passed.'
-                : `${days} day${days === 1 ? '' : 's'} left · ${formatCountdown(msLeft)} remaining`}
-            </div>
-          );
+              {busy ? 'Cancelling…' : 'Cancel Match'}
+            </button>
+          </div>
+        )}
+
+        {/* Match Timer / Ended Status Display */}
+        {(() => {
+          if (duel.status === 'completed') {
+            return (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: '10px 14px',
+                  background: 'rgba(41,231,205,0.08)',
+                  border: '1px solid #29e7cd',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: '#29e7cd',
+                  fontWeight: 700,
+                }}
+              >
+                🏁 Match Ended
+              </div>
+            );
+          }
+
+          if (duel.status === 'cancelled') {
+            return (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: '10px 14px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid var(--panel-border)',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: 'var(--muted)',
+                }}
+              >
+                🚫 Match Cancelled
+              </div>
+            );
+          }
+
+          if (duel.ends_at) {
+            const msLeft = new Date(duel.ends_at).getTime() - now;
+            const expired = msLeft <= 0;
+            const days = Math.floor(Math.max(0, msLeft) / 86400000);
+
+            return (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: '10px 14px',
+                  background: expired ? 'rgba(255,68,68,0.1)' : 'rgba(41,231,205,0.08)',
+                  border: `1px solid ${expired ? '#ff4444' : 'var(--panel-border)'}`,
+                  borderRadius: 6,
+                  fontSize: 12,
+                  color: expired ? '#ff4444' : 'var(--muted)',
+                }}
+              >
+                ⏱ {expired
+                  ? 'Ended'
+                  : `${days > 0 ? `${days} day${days === 1 ? '' : 's'} left · ` : ''}${formatCountdown(msLeft)} remaining`}
+              </div>
+            );
+          }
+
+          return null;
         })()}
 
         {joinMessage && (
@@ -354,7 +424,7 @@ export default function DuelChatPage() {
             ) : (
               <>
                 <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
-                  Entry fee: <strong style={{ color: '#fff' }}>${duel.entry_fee}</strong>
+                  Required Entry Fee: <strong style={{ color: '#fff' }}>${duel.entry_fee}</strong>
                   {duel.join_mode === 'approval' && ' · The host must approve your entry'}
                 </p>
                 <button onClick={handleJoin} disabled={busy} style={primaryBtn}>
@@ -450,10 +520,10 @@ export default function DuelChatPage() {
                 value={messageBody}
                 onChange={(e) => setMessageBody(e.target.value)}
                 placeholder={chatUnlocked ? 'Message your opponent…' : 'Waiting for an opponent…'}
-                disabled={!chatUnlocked || duel.status === 'completed'}
+                disabled={!chatUnlocked || duel.status === 'completed' || duel.status === 'cancelled'}
                 style={{ flex: 1, padding: '10px 12px', background: '#131627', border: '1px solid var(--panel-border)', color: '#fff', borderRadius: 4, fontSize: 13 }}
               />
-              <button type="submit" disabled={sending || !chatUnlocked || duel.status === 'completed'} style={{ ...primaryBtn, padding: '10px 18px' }}>
+              <button type="submit" disabled={sending || !chatUnlocked || duel.status === 'completed' || duel.status === 'cancelled'} style={{ ...primaryBtn, padding: '10px 18px' }}>
                 Send
               </button>
             </form>
@@ -463,7 +533,6 @@ export default function DuelChatPage() {
             👀 You're viewing this match as a spectator — chat is private between the two players.
           </div>
         )}
-
 
         {/* Result acceptance */}
         {duel.status === 'live' && isParticipant && (
@@ -538,7 +607,7 @@ function getStatusInfo(status: string) {
     case 'live':
       return { label: 'Live', bg: 'rgba(41,231,205,0.15)', color: '#29e7cd' };
     case 'completed':
-      return { label: 'Completed', bg: 'rgba(41,231,205,0.15)', color: '#29e7cd' };
+      return { label: 'Ended', bg: 'rgba(41,231,205,0.15)', color: '#29e7cd' };
     case 'cancelled':
       return { label: 'Cancelled', bg: 'rgba(255,255,255,0.1)', color: 'var(--muted)' };
     default:
