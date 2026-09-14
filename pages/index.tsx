@@ -1,6 +1,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import SkeletonGrid from '../components/SkeletonGrid';
 import Pagination from '../components/Pagination';
@@ -13,25 +14,33 @@ interface Game {
   image_url?: string;
 }
 
-interface Challenge {
-  id: string;
-  title: string;
-  game_id: string;
-  entry_fee: number;
-  max_players: number;
-  current_players: number;
-  status: string;
-}
-
 const GAMES_PAGE_SIZE = 6;
 
 export default function Home() {
+  const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [gamesPage, setGamesPage] = useState(1);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredSuggestions, setFilteredSuggestions] = useState<Game[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearching(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchData = async () => {
@@ -44,6 +53,32 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    if (query.trim() === '') {
+      setFilteredSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const matches = games.filter(
+      (g) =>
+        g.title.toLowerCase().includes(query.toLowerCase()) ||
+        g.category.toLowerCase().includes(query.toLowerCase())
+    );
+
+    setFilteredSuggestions(matches);
+    setIsSearching(true);
+  };
+
+  const handleSelectGame = (gameId: string) => {
+    setIsSearching(false);
+    setSearchQuery('');
+    router.push(`/challenges/game/${gameId}`);
   };
 
   return (
@@ -62,7 +97,7 @@ export default function Home() {
         </p>
       </section>
 
-      {/* THREE MAIN INTERACTIVE CARDS SECTION (SINGLE ROW ON MOBILE) */}
+      {/* THREE MAIN INTERACTIVE CARDS SECTION */}
       <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 40px' }}>
         <h3 style={{ fontSize: 13, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14, fontWeight: 700 }}>
           Platform Action Hub
@@ -92,6 +127,90 @@ export default function Home() {
               <p style={cardDescriptionStyle}>Multi-player tournaments</p>
             </div>
           </Link>
+        </div>
+      </section>
+
+      {/* GAME SEARCH & SUGGESTION SECTION */}
+      <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 30px' }}>
+        <div ref={searchRef} style={{ position: 'relative', maxWidth: 600, margin: '0 auto' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <span style={{ position: 'absolute', left: 14, fontSize: 16, color: 'var(--muted)' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search available games by title or genre..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              onFocus={() => searchQuery.trim() !== '' && setIsSearching(true)}
+              style={{
+                width: '100%',
+                padding: '12px 14px 12px 42px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--panel-border)',
+                borderRadius: 8,
+                color: '#fff',
+                fontSize: 14,
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          {/* Search Suggestions Dropdown */}
+          {isSearching && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                marginTop: 6,
+                background: '#121422',
+                border: '1px solid var(--panel-border)',
+                borderRadius: 8,
+                maxHeight: 280,
+                overflowY: 'auto',
+                zIndex: 100,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+              }}
+            >
+              {filteredSuggestions.length > 0 ? (
+                filteredSuggestions.map((game) => (
+                  <div
+                    key={game.id}
+                    onClick={() => handleSelectGame(game.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    {game.image_url && (
+                      <img
+                        src={game.image_url}
+                        alt={game.title}
+                        style={{ width: 36, height: 36, borderRadius: 4, objectFit: 'cover' }}
+                      />
+                    )}
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{game.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--red)', textTransform: 'uppercase', fontWeight: 600 }}>
+                        {game.category}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '14px', color: 'var(--muted)', fontSize: 13, textAlign: 'center' }}>
+                  No games matching "{searchQuery}"
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
