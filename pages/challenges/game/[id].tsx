@@ -98,7 +98,6 @@ export default function SingleGameHubPage() {
 
     const { data: { session: sess } } = await supabase.auth.getSession();
 
-    // Fetch Market items, Duels, Tournaments, and Leagues concurrently
     const [
       { data: marketData },
       { data: duelData },
@@ -401,9 +400,7 @@ export default function SingleGameHubPage() {
             <EmptyRow text={`No tournaments for ${game.title} yet.`} />
           ) : (
             tournaments.map((t) => {
-              const joined = joinedTournamentIds.has(t.id);
               const count = tournamentCounts[t.id] || 0;
-              const full = t.max_players != null && count >= t.max_players;
               const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/tournaments/${t.id}`;
               const linkCopied = copiedId === `link-${t.id}`;
 
@@ -517,7 +514,7 @@ const marketCardStyle: React.CSSProperties = {
   textDecoration: 'none',
   display: 'flex',
   flexDirection: 'column',
-  justify: 'space-between',
+  justifyContent: 'space-between',
 };
 
 const marketViewBtnStyle: React.CSSProperties = {
