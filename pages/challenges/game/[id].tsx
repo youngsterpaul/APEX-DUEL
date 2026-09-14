@@ -11,6 +11,14 @@ interface Game {
   image_url?: string | null;
 }
 
+interface MarketListing {
+  id: string;
+  title: string;
+  price: number;
+  image_url?: string | null;
+  status: string;
+}
+
 interface DuelRow {
   id: string;
   game: string;
@@ -40,25 +48,27 @@ interface LeagueRow {
   starts_at: string | null;
 }
 
-export default function GameChallengesPage() {
+export default function SingleGameHubPage() {
   const router = useRouter();
   const { id } = router.query;
 
   const [session, setSession] = useState<any>(null);
   const [game, setGame] = useState<Game | null>(null);
+  const [marketListings, setMarketListings] = useState<MarketListing[]>([]);
   const [duels, setDuels] = useState<DuelRow[]>([]);
   const [tournaments, setTournaments] = useState<TournamentRow[]>([]);
   const [leagues, setLeagues] = useState<LeagueRow[]>([]);
+  
   const [joinedTournamentIds, setJoinedTournamentIds] = useState<Set<string>>(new Set());
   const [joinedLeagueIds, setJoinedLeagueIds] = useState<Set<string>>(new Set());
   const [tournamentCounts, setTournamentCounts] = useState<Record<string, number>>({});
   const [leagueCounts, setLeagueCounts] = useState<Record<string, number>>({});
+  
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // States for Code Input and Active Copied Items Feedback
   const [inputCode, setInputCode] = useState('');
   const [joiningByCode, setJoiningByCode] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -73,7 +83,12 @@ export default function GameChallengesPage() {
 
   const fetchAll = async (gameId: string) => {
     setLoading(true);
-    const { data: gameData } = await supabase.from('games').select('id, title, category, image_url').eq('id', gameId).maybeSingle();
+    const { data: gameData } = await supabase
+      .from('games')
+      .select('id, title, category, image_url')
+      .eq('id', gameId)
+      .maybeSingle();
+
     if (!gameData) {
       setNotFound(true);
       setLoading(false);
@@ -81,11 +96,21 @@ export default function GameChallengesPage() {
     }
     setGame(gameData);
 
-    const {
-      data: { session: sess },
-    } = await supabase.auth.getSession();
+    const { data: { session: sess } } = await supabase.auth.getSession();
 
-    const [{ data: duelData }, { data: tournamentData }, { data: leagueData }] = await Promise.all([
+    // Fetch Market items, Duels, Tournaments, and Leagues concurrently
+    const [
+      { data: marketData },
+      { data: duelData },
+      { data: tournamentData },
+      { data: leagueData }
+    ] = await Promise.all([
+      supabase
+        .from('market_listings')
+        .select('id, title, price, image_url, status')
+        .eq('game_id', gameId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false }),
       supabase
         .from('duels')
         .select('id, game, status, entry_fee, scheduled_at, share_code, player1_id')
@@ -104,6 +129,7 @@ export default function GameChallengesPage() {
         .order('created_at', { ascending: false }),
     ]);
 
+    setMarketListings(marketData || []);
     setDuels(duelData || []);
     setTournaments(tournamentData || []);
     setLeagues(leagueData || []);
@@ -115,14 +141,17 @@ export default function GameChallengesPage() {
       tIds.length > 0 ? supabase.from('tournament_participants').select('tournament_id').in('tournament_id', tIds) : Promise.resolve({ data: [] as any[] }),
       lIds.length > 0 ? supabase.from('league_participants').select('league_id').in('league_id', lIds) : Promise.resolve({ data: [] as any[] }),
     ]);
+
     const tCounts: Record<string, number> = {};
     (allTournamentParticipants || []).forEach((r: any) => {
       tCounts[r.tournament_id] = (tCounts[r.tournament_id] || 0) + 1;
     });
+
     const lCounts: Record<string, number> = {};
     (allLeagueParticipants || []).forEach((r: any) => {
       lCounts[r.league_id] = (lCounts[r.league_id] || 0) + 1;
     });
+
     setTournamentCounts(tCounts);
     setLeagueCounts(lCounts);
 
@@ -137,17 +166,12 @@ export default function GameChallengesPage() {
       ]);
       setJoinedTournamentIds(new Set((myTournaments || []).map((r: any) => r.tournament_id)));
       setJoinedLeagueIds(new Set((myLeagues || []).map((r: any) => r.league_id)));
-    } else {
-      setJoinedTournamentIds(new Set());
-      setJoinedLeagueIds(new Set());
     }
 
     setLoading(false);
   };
 
-  const requireLogin = () => {
-    setMessage({ type: 'error', text: 'Please sign in to join.' });
-  };
+  const requireLogin = () => setMessage({ type: 'error', text: 'Please sign in to join.' });
 
   const handleJoinDuel = async (duelId: string) => {
     if (!session) return requireLogin();
@@ -166,10 +190,7 @@ export default function GameChallengesPage() {
     e.preventDefault();
     if (!session) return requireLogin();
     const cleanedCode = inputCode.trim().toUpperCase();
-    if (!cleanedCode) {
-      setMessage({ type: 'error', text: 'Please enter a valid match code.' });
-      return;
-    }
+    if (!cleanedCode) return setMessage({ type: 'error', text: 'Please enter a valid match code.' });
 
     setJoiningByCode(true);
     setMessage(null);
@@ -199,11 +220,9 @@ export default function GameChallengesPage() {
       setMessage({ type: 'error', text: joinErr.message });
       return;
     }
-
     router.push(`/duel/${duelData.id}`);
   };
 
-  // Helper function to copy specific match text or direct match link
   const copyToClipboard = (textToCopy: string, itemId: string) => {
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(textToCopy);
@@ -212,36 +231,8 @@ export default function GameChallengesPage() {
     }
   };
 
-  const handleJoinTournament = async (tournamentId: string) => {
-    if (!session) return requireLogin();
-    setBusyId(tournamentId);
-    setMessage(null);
-    const { error } = await supabase.rpc('register_for_tournament', { p_tournament_id: tournamentId });
-    setBusyId(null);
-    if (error) {
-      setMessage({ type: 'error', text: error.message });
-      return;
-    }
-    setMessage({ type: 'success', text: "You're registered!" });
-    if (typeof id === 'string') fetchAll(id);
-  };
-
-  const handleJoinLeague = async (leagueId: string) => {
-    if (!session) return requireLogin();
-    setBusyId(leagueId);
-    setMessage(null);
-    const { error } = await supabase.rpc('join_league', { p_league_id: leagueId });
-    setBusyId(null);
-    if (error) {
-      setMessage({ type: 'error', text: error.message });
-      return;
-    }
-    setMessage({ type: 'success', text: "You're in!" });
-    if (typeof id === 'string') fetchAll(id);
-  };
-
   if (loading) {
-    return <div style={{ color: 'var(--muted)', textAlign: 'center', padding: '80px 20px', background: '#0a0b14', minHeight: '100vh' }}>Loading…</div>;
+    return <div style={{ color: 'var(--muted)', textAlign: 'center', padding: '80px 20px', background: '#0a0b14', minHeight: '100vh' }}>Loading...</div>;
   }
 
   if (notFound || !game) {
@@ -253,12 +244,12 @@ export default function GameChallengesPage() {
     );
   }
 
-  const totalCount = duels.length + tournaments.length + leagues.length;
+  const totalChallenges = duels.length + tournaments.length + leagues.length;
 
   return (
     <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
       <Head>
-        <title>{game.title} Challenges | ApexDuel</title>
+        <title>{game.title} Hub | ApexDuel</title>
       </Head>
 
       <section
@@ -284,27 +275,19 @@ export default function GameChallengesPage() {
           {game.category}
         </span>
         <h1 style={{ fontSize: 'clamp(26px, 4vw, 42px)', fontWeight: 900, textTransform: 'uppercase', margin: '8px 0' }}>
-          {game.title} <span style={{ color: 'var(--red)' }}>Challenges</span>
+          {game.title} <span style={{ color: 'var(--red)' }}>Hub</span>
         </h1>
         <p style={{ color: '#d8dae0', fontSize: 14, marginBottom: 20 }}>
-          {totalCount} open challenge{totalCount === 1 ? '' : 's'} for this game right now
+          {totalChallenges} Active Challenge{totalChallenges === 1 ? '' : 's'} · {marketListings.length} Marketplace Accounts Listed
         </p>
-        <Link
-          href="/challenges/create"
-          style={{
-            background: 'var(--red)',
-            color: '#fff',
-            padding: '10px 22px',
-            fontWeight: 700,
-            fontSize: 13,
-            textTransform: 'uppercase',
-            textDecoration: 'none',
-            borderRadius: 4,
-            display: 'inline-block',
-          }}
-        >
-          + Create Challenge
-        </Link>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <Link href="/challenges/create" style={actionHeaderBtnStyle}>
+            + Create Challenge
+          </Link>
+          <Link href={`/markets/game/${game.id}`} style={{ ...actionHeaderBtnStyle, background: 'transparent', border: '1px solid var(--red)' }}>
+            🛒 View Game Marketplace
+          </Link>
+        </div>
       </section>
 
       <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 20px 80px', display: 'flex', flexDirection: 'column', gap: 36 }}>
@@ -341,29 +324,33 @@ export default function GameChallengesPage() {
                 borderRadius: 4,
                 fontSize: 13,
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em',
               }}
             />
-            <button
-              type="submit"
-              disabled={joiningByCode}
-              style={{
-                background: 'var(--red)',
-                color: '#fff',
-                border: 'none',
-                padding: '10px 20px',
-                fontWeight: 700,
-                fontSize: 12,
-                textTransform: 'uppercase',
-                borderRadius: 4,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <button type="submit" disabled={joiningByCode} style={codeJoinBtnStyle}>
               {joiningByCode ? 'Joining…' : 'Join via Code'}
             </button>
           </form>
         </div>
+
+        {/* Marketplace Accounts for this Game */}
+        <GameSection title={`Marketplace Accounts (${marketListings.length})`}>
+          {marketListings.length === 0 ? (
+            <EmptyRow text={`No accounts on sale for ${game.title} right now.`} />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, padding: 16 }}>
+              {marketListings.map((item) => (
+                <Link key={item.id} href={`/markets/${item.id}`} style={marketCardStyle}>
+                  {item.image_url && (
+                    <img src={item.image_url} alt={item.title} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 4 }} />
+                  )}
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#fff', marginTop: 8 }}>{item.title}</div>
+                  <div style={{ color: '#00ff64', fontWeight: 800, fontSize: 15, marginTop: 4 }}>${item.price}</div>
+                  <span style={marketViewBtnStyle}>View Account Listing</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </GameSection>
 
         {/* 1v1 Duels */}
         <GameSection title="1v1 Duels">
@@ -385,28 +372,15 @@ export default function GameChallengesPage() {
                     </div>
                   </Link>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-                    {/* Copy Match Code */}
-                    <button
-                      onClick={() => copyToClipboard(d.share_code, `code-${d.id}`)}
-                      style={{ ...actionBtnStyle, background: codeCopied ? '#00ff64' : 'transparent', color: codeCopied ? '#000' : '#fff' }}
-                      title="Copy Code"
-                    >
+                    <button onClick={() => copyToClipboard(d.share_code, `code-${d.id}`)} style={{ ...actionBtnStyle, background: codeCopied ? '#00ff64' : 'transparent', color: codeCopied ? '#000' : '#fff' }}>
                       {codeCopied ? 'Code Copied!' : `📋 ${d.share_code}`}
                     </button>
-
-                    {/* Copy Match Link */}
-                    <button
-                      onClick={() => copyToClipboard(directLink, `link-${d.id}`)}
-                      style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}
-                      title="Share Match Link"
-                    >
+                    <button onClick={() => copyToClipboard(directLink, `link-${d.id}`)} style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}>
                       {linkCopied ? 'Link Copied!' : '🔗 Share'}
                     </button>
-
                     <Link href={`/duel/${d.id}`} style={viewBtnStyle}>
                       View
                     </Link>
-
                     {isOwn ? (
                       <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Your Match</span>
                     ) : (
@@ -430,7 +404,6 @@ export default function GameChallengesPage() {
               const joined = joinedTournamentIds.has(t.id);
               const count = tournamentCounts[t.id] || 0;
               const full = t.max_players != null && count >= t.max_players;
-              const canJoin = t.status === 'registration' && !joined && !full;
               const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/tournaments/${t.id}`;
               const linkCopied = copiedId === `link-${t.id}`;
 
@@ -439,29 +412,18 @@ export default function GameChallengesPage() {
                   <Link href={`/tournaments/${t.id}`} style={rowInfoLinkStyle}>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{t.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'capitalize' }}>
-                      {t.status} · {t.starts_at ? new Date(t.starts_at).toLocaleString() : 'Start time TBD'} ·{' '}
-                      {t.entry_fee > 0 ? `$${t.entry_fee}` : 'Free'}
+                      {t.status} · {t.starts_at ? new Date(t.starts_at).toLocaleString() : 'Start time TBD'} · {t.entry_fee > 0 ? `$${t.entry_fee}` : 'Free'}
                       {t.prize_pool > 0 && ` · $${t.prize_pool} prize`}
                       {t.max_players != null && ` · ${count}/${t.max_players} players`}
                     </div>
                   </Link>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-                    <button
-                      onClick={() => copyToClipboard(directLink, `link-${t.id}`)}
-                      style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}
-                    >
+                    <button onClick={() => copyToClipboard(directLink, `link-${t.id}`)} style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}>
                       {linkCopied ? 'Link Copied!' : '🔗 Share'}
                     </button>
                     <Link href={`/tournaments/${t.id}`} style={viewBtnStyle}>
                       View
                     </Link>
-                    {joined ? (
-                      <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Joined</span>
-                    ) : (
-                      <button onClick={() => handleJoinTournament(t.id)} disabled={!canJoin || busyId === t.id} style={joinBtnStyle}>
-                        {busyId === t.id ? '…' : full ? 'Full' : canJoin ? 'Join' : 'Closed'}
-                      </button>
-                    )}
                   </div>
                 </div>
               );
@@ -475,10 +437,7 @@ export default function GameChallengesPage() {
             <EmptyRow text={`No leagues for ${game.title} yet.`} />
           ) : (
             leagues.map((l) => {
-              const joined = joinedLeagueIds.has(l.id);
               const count = leagueCounts[l.id] || 0;
-              const full = count >= l.max_players;
-              const canJoin = l.status === 'open' && !joined && !full;
               const directLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/leagues/${l.id}`;
               const linkCopied = copiedId === `link-${l.id}`;
 
@@ -491,22 +450,12 @@ export default function GameChallengesPage() {
                     </div>
                   </Link>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-                    <button
-                      onClick={() => copyToClipboard(directLink, `link-${l.id}`)}
-                      style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}
-                    >
+                    <button onClick={() => copyToClipboard(directLink, `link-${l.id}`)} style={{ ...actionBtnStyle, background: linkCopied ? '#00ff64' : 'transparent', color: linkCopied ? '#000' : '#fff' }}>
                       {linkCopied ? 'Link Copied!' : '🔗 Share'}
                     </button>
                     <Link href={`/leagues/${l.id}`} style={viewBtnStyle}>
                       View
                     </Link>
-                    {joined ? (
-                      <span style={{ ...joinBtnStyle, opacity: 0.5, cursor: 'default' }}>Joined</span>
-                    ) : (
-                      <button onClick={() => handleJoinLeague(l.id)} disabled={!canJoin || busyId === l.id} style={joinBtnStyle}>
-                        {busyId === l.id ? '…' : full ? 'Full' : canJoin ? 'Join' : 'Closed'}
-                      </button>
-                    )}
                   </div>
                 </div>
               );
@@ -535,6 +484,55 @@ function EmptyRow({ text }: { text: string }) {
   return <div style={{ padding: 16, fontSize: 13, color: 'var(--muted)' }}>{text}</div>;
 }
 
+const actionHeaderBtnStyle: React.CSSProperties = {
+  background: 'var(--red)',
+  color: '#fff',
+  padding: '10px 22px',
+  fontWeight: 700,
+  fontSize: 13,
+  textTransform: 'uppercase',
+  textDecoration: 'none',
+  borderRadius: 4,
+  display: 'inline-block',
+};
+
+const codeJoinBtnStyle: React.CSSProperties = {
+  background: 'var(--red)',
+  color: '#fff',
+  border: 'none',
+  padding: '10px 20px',
+  fontWeight: 700,
+  fontSize: 12,
+  textTransform: 'uppercase',
+  borderRadius: 4,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
+const marketCardStyle: React.CSSProperties = {
+  background: '#0a0b14',
+  border: '1px solid var(--panel-border)',
+  borderRadius: 6,
+  padding: 12,
+  textDecoration: 'none',
+  display: 'flex',
+  flexDirection: 'column',
+  justify: 'space-between',
+};
+
+const marketViewBtnStyle: React.CSSProperties = {
+  background: 'var(--red)',
+  color: '#fff',
+  textAlign: 'center',
+  padding: '6px 10px',
+  borderRadius: 4,
+  fontWeight: 700,
+  fontSize: 11,
+  textTransform: 'uppercase',
+  marginTop: 12,
+  display: 'block',
+};
+
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -561,7 +559,6 @@ const actionBtnStyle: React.CSSProperties = {
   borderRadius: 4,
   cursor: 'pointer',
   whiteSpace: 'nowrap',
-  transition: 'all 0.2s',
 };
 
 const viewBtnStyle: React.CSSProperties = {
