@@ -99,38 +99,19 @@ export default function Header() {
     cursor: 'pointer',
   };
 
-  const mobileCreateButtonStyle: React.CSSProperties = {
-    background: 'var(--red)',
-    color: '#fff',
-    padding: '10px 14px',
-    fontWeight: 700,
-    fontSize: '12px',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    border: 'none',
-    borderRadius: '4px',
-    display: 'block',
-    width: '100%',
-    textAlign: 'center',
-    boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
-    cursor: 'pointer',
-    textDecoration: 'none',
-  };
-
-  const CreateDropdown = ({ fullWidth = false }: { fullWidth?: boolean }) => (
+  const CreateDropdown = () => (
     <div
       style={{
         position: 'absolute',
         top: 'calc(100% + 8px)',
         right: 0,
-        left: fullWidth ? 0 : 'auto',
         background: '#131627',
         border: '1px solid var(--panel-border)',
         borderRadius: 6,
-        minWidth: fullWidth ? undefined : 190,
+        minWidth: 190,
         overflow: 'hidden',
         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-        zIndex: 999,
+        zIndex: 60,
       }}
     >
       {createOptions.map((opt) => (
@@ -205,28 +186,38 @@ export default function Header() {
           </nav>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            {/* Challenge CTA Button — desktop only in this row (mobile version lives in the row below) */}
-            <Link
-              href="/challenges"
-              className="challenge-desktop-wrap"
-              style={{
-                background: 'var(--red)',
-                color: '#fff',
-                padding: '8px 14px',
-                fontWeight: 700,
-                fontSize: '12px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                textDecoration: 'none',
-                borderRadius: '2px',
-                transform: 'skewX(-10deg)',
-                boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
-              }}
-            >
-              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
-            </Link>
+            {/* Challenge CTA Button — desktop only now; moves to its own row on mobile */}
+            <div className="challenge-desktop-wrap">
+              <Link
+                href="/challenges"
+                style={{
+                  background: 'var(--red)',
+                  color: '#fff',
+                  padding: '8px 14px',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  textDecoration: 'none',
+                  borderRadius: '2px',
+                  transform: 'skewX(-10deg)',
+                  display: 'inline-block',
+                  boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
+                }}
+              >
+                <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
+              </Link>
+            </div>
 
-            {/* Cart */}
+            {/* Create Button — desktop only (shown inline next to Challenge) */}
+            <div className="create-desktop-wrap" ref={createDesktopRef} style={{ position: 'relative' }}>
+              <button onClick={() => setCreateOpen((v) => !v)} style={createButtonStyle}>
+                <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create</span>
+              </button>
+              {createOpen && <CreateDropdown />}
+            </div>
+
+            {/* Cart — placed right before the hamburger */}
             <button
               onClick={() => setCartOpen(true)}
               aria-label="Cart"
@@ -270,15 +261,7 @@ export default function Header() {
               )}
             </button>
 
-            {/* Create Button — desktop only (mobile version lives in the row below) */}
-            <div className="create-desktop-wrap" ref={createDesktopRef} style={{ position: 'relative' }}>
-              <button onClick={() => setCreateOpen((v) => !v)} style={createButtonStyle}>
-                <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create</span>
-              </button>
-              {createOpen && <CreateDropdown />}
-            </div>
-
-            {/* Hamburger / Menu toggle button */}
+            {/* Hamburger / Menu toggle button — stays last/rightmost */}
             <button
               onClick={() => setMenuOpen(true)}
               style={{
@@ -305,43 +288,85 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Challenge + Create — mobile only, stacked in their own row, same column width as the nav links row below */}
-        <div className="create-mobile-wrap">
-          <div className="container" style={{ padding: '10px 16px 0', maxWidth: '100%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-              <Link href="/challenges" style={mobileCreateButtonStyle}>
-                Challenge
-              </Link>
-              <div className="create-mobile-inner" ref={createMobileRef} style={{ position: 'relative', width: '100%' }}>
-                <button onClick={() => setCreateOpen((v) => !v)} style={mobileCreateButtonStyle}>
-                  + Create
-                </button>
-                {createOpen && <CreateDropdown fullWidth />}
-              </div>
+        {/* Mobile-only row: Challenge + Create side by side, full width, evenly split */}
+        <div
+          className="challenge-mobile-row"
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            background: '#0a0b14',
+            padding: '8px 10px',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+            <Link
+              href="/challenges"
+              style={{
+                flex: '1 1 0',
+                minWidth: 0,
+                background: 'var(--red)',
+                color: '#fff',
+                padding: '8px 6px',
+                fontWeight: 700,
+                fontSize: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em',
+                textDecoration: 'none',
+                borderRadius: '2px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
+              }}
+            >
+              Challenge
+            </Link>
+
+            <div
+              className="create-mobile-wrap"
+              ref={createMobileRef}
+              style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}
+            >
+              <button
+                onClick={() => setCreateOpen((v) => !v)}
+                style={{
+                  background: 'var(--red)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.02em',
+                  border: 'none',
+                  borderRadius: '2px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
+                  width: '100%',
+                  padding: '8px 6px',
+                }}
+              >
+                + Create
+              </button>
+              {createOpen && <CreateDropdown />}
             </div>
           </div>
         </div>
 
-        {/* Mobile Sub-Header Navigation Bar */}
+        {/* Mobile Sub-Header Navigation Bar — Markets/Tournaments/Leagues/1v1,
+            sharing the row equally so it never needs to scroll. */}
         <div
           className="mobile-subnav"
           style={{
             borderTop: '1px solid rgba(255,255,255,0.08)',
             background: '#0a0b14',
-            padding: '8px 12px',
-            overflowX: 'auto',
-            whiteSpace: 'nowrap',
-            WebkitOverflowScrolling: 'touch',
+            padding: '8px 10px',
+            overflow: 'hidden',
           }}
         >
           <div
             style={{
               display: 'flex',
-              gap: '12px',
+              gap: '4px',
               alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: 'max-content',
-              margin: '0 auto',
+              width: '100%',
             }}
           >
             {navLinks.map((link) => {
@@ -354,17 +379,22 @@ export default function Header() {
                   href={link.href}
                   className={isHomeLink ? 'mobile-home-nav-item' : ''}
                   style={{
+                    flex: '1 1 0',
+                    minWidth: 0,
                     fontWeight: 700,
-                    fontSize: '12px',
+                    fontSize: '11px',
                     color: isActive ? 'var(--red)' : '#ccc',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.02em',
                     textDecoration: 'none',
-                    padding: '4px 10px',
+                    padding: '6px 4px',
                     borderRadius: '4px',
                     background: isActive ? 'rgba(255,59,92,0.12)' : 'transparent',
                     border: isActive ? '1px solid rgba(255,59,92,0.3)' : '1px solid transparent',
-                    flexShrink: 0,
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {link.label}
@@ -384,14 +414,20 @@ export default function Header() {
           display: block;
         }
 
+        /* Challenge button: desktop-only inline placement; mobile gets its own row instead */
+        .challenge-desktop-wrap {
+          display: none;
+        }
+        .challenge-mobile-row {
+          display: block;
+        }
+
         /* Create button: hidden on desktop row context by default, shown via media queries below */
         .create-desktop-wrap {
           display: none;
         }
         .create-mobile-wrap {
-          display: block;
-          position: relative;
-          z-index: 55;
+          display: inline-flex;
         }
 
         /* Hide Home link from top sub-nav on small screens (max 768px) */
@@ -406,6 +442,12 @@ export default function Header() {
             display: flex !important;
           }
           .mobile-subnav {
+            display: none !important;
+          }
+          .challenge-desktop-wrap {
+            display: inline-block !important;
+          }
+          .challenge-mobile-row {
             display: none !important;
           }
           .create-desktop-wrap {
