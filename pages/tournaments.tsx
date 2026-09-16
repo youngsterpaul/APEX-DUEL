@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import SkeletonGrid from '../components/SkeletonGrid';
 import Pagination from '../components/Pagination';
@@ -31,6 +31,57 @@ interface Game {
 
 const PAGE_SIZE = 6;
 
+// Stake buckets used by the "Stake Amount" filter dropdown.
+// Adjust the thresholds here if your entry fees run higher/lower.
+const STAKE_RANGES = [
+  { key: 'all', label: 'Any Stake' },
+  { key: 'free', label: 'Free' },
+  { key: 'under25', label: 'Under $25' },
+  { key: '25to100', label: '$25 - $100' },
+  { key: 'over100', label: '$100+' },
+] as const;
+
+type StakeKey = (typeof STAKE_RANGES)[number]['key'];
+
+function matchesStake(entryFee: number | null | undefined, stakeKey: StakeKey): boolean {
+  const fee = entryFee || 0;
+  switch (stakeKey) {
+    case 'all':
+      return true;
+    case 'free':
+      return fee <= 0;
+    case 'under25':
+      return fee > 0 && fee < 25;
+    case '25to100':
+      return fee >= 25 && fee <= 100;
+    case 'over100':
+      return fee > 100;
+    default:
+      return true;
+  }
+}
+
+const selectStyle: React.CSSProperties = {
+  background: '#131627',
+  color: '#fff',
+  border: '1px solid var(--panel-border)',
+  padding: '8px 12px',
+  borderRadius: 4,
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+  minWidth: 160,
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: 'var(--muted)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  marginBottom: 4,
+  display: 'block',
+};
+
 export default function Tournaments() {
   const { isInCart, addToCart } = useCart();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -38,6 +89,8 @@ export default function Tournaments() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterGame, setFilterGame] = useState<string>('all');
+  const [filterStake, setFilterStake] = useState<StakeKey>('all');
   const [cartMessage, setCartMessage] = useState<string | null>(null);
 
   const handleAddToCart = async (id: string) => {
@@ -102,13 +155,32 @@ export default function Tournaments() {
     }
   };
 
+  // Build the list of games available in the dropdown from whatever tournaments
+  // actually exist right now, so the filter never shows a game with 0 results.
+  const availableGames = useMemo(() => {
+    const ids = Array.from(new Set(tournaments.map((t) => t.game_id).filter(Boolean)));
+    return ids
+      .map((id) => gamesMap[id])
+      .filter((g): g is Game => Boolean(g))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [tournaments, gamesMap]);
+
   const filteredTournaments = tournaments.filter((t) => {
-    if (filterStatus === 'all') return true;
-    return t.status.toLowerCase() === filterStatus;
+    if (filterStatus !== 'all' && t.status.toLowerCase() !== filterStatus) return false;
+    if (filterGame !== 'all' && t.game_id !== filterGame) return false;
+    if (!matchesStake(t.entry_fee, filterStake)) return false;
+    return true;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredTournaments.length / PAGE_SIZE));
   const pageTournaments = filteredTournaments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const resetFilters = () => {
+    setFilterStatus('all');
+    setFilterGame('all');
+    setFilterStake('all');
+    setPage(1);
+  };
 
   return (
     <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh', paddingBottom: 80 }}>
@@ -164,8 +236,8 @@ export default function Tournaments() {
         </Link>
       </section>
 
-      {/* Filters Bar */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 24px' }}>
+      {/* Status Filter Bar */}
+      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 16px' }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {['all', 'registration', 'live', 'completed'].map((st) => (
             <button
@@ -189,6 +261,85 @@ export default function Tournaments() {
               {st === 'all' ? 'All Events' : st}
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* Game & Stake Filters */}
+      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 24px' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 20,
+            flexWrap: 'wrap',
+            alignItems: 'flex-end',
+            background: '#131627',
+            border: '1px solid var(--panel-border)',
+            borderRadius: 8,
+            padding: 16,
+          }}
+        >
+          <div>
+            <label style={labelStyle} htmlFor="tourney-game-filter">
+              Game
+            </label>
+            <select
+              id="tourney-game-filter"
+              value={filterGame}
+              onChange={(e) => {
+                setFilterGame(e.target.value);
+                setPage(1);
+              }}
+              style={selectStyle}
+            >
+              <option value="all">All Games</option>
+              {availableGames.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={labelStyle} htmlFor="tourney-stake-filter">
+              Stake Amount
+            </label>
+            <select
+              id="tourney-stake-filter"
+              value={filterStake}
+              onChange={(e) => {
+                setFilterStake(e.target.value as StakeKey);
+                setPage(1);
+              }}
+              style={selectStyle}
+            >
+              {STAKE_RANGES.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(filterGame !== 'all' || filterStake !== 'all' || filterStatus !== 'all') && (
+            <button
+              onClick={resetFilters}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--panel-border)',
+                color: 'var(--muted)',
+                padding: '8px 14px',
+                borderRadius: 4,
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                height: 37,
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       </section>
 
@@ -223,7 +374,7 @@ export default function Tournaments() {
               color: 'var(--muted)',
             }}
           >
-            No tournaments found for this category.
+            No tournaments found for this filter. Try clearing the filters.
           </div>
         ) : (
           <>

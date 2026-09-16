@@ -1,10 +1,61 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useCart } from '../lib/cartContext';
 import SkeletonGrid from '../components/SkeletonGrid';
 import { Duel } from '../lib/types';
+
+// Stake buckets used by the "Stake Amount" filter dropdown.
+// Adjust the thresholds here if your entry fees run higher/lower.
+const STAKE_RANGES = [
+  { key: 'all', label: 'Any Stake' },
+  { key: 'free', label: 'Free' },
+  { key: 'under25', label: 'Under $25' },
+  { key: '25to100', label: '$25 - $100' },
+  { key: 'over100', label: '$100+' },
+] as const;
+
+type StakeKey = (typeof STAKE_RANGES)[number]['key'];
+
+function matchesStake(entryFee: number | null | undefined, stakeKey: StakeKey): boolean {
+  const fee = entryFee || 0;
+  switch (stakeKey) {
+    case 'all':
+      return true;
+    case 'free':
+      return fee <= 0;
+    case 'under25':
+      return fee > 0 && fee < 25;
+    case '25to100':
+      return fee >= 25 && fee <= 100;
+    case 'over100':
+      return fee > 100;
+    default:
+      return true;
+  }
+}
+
+const selectStyle: React.CSSProperties = {
+  background: '#131627',
+  color: '#fff',
+  border: '1px solid var(--panel-border)',
+  padding: '8px 12px',
+  borderRadius: 4,
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+  minWidth: 160,
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: 'var(--muted)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  marginBottom: 4,
+  display: 'block',
+};
 
 export default function DuelsPage() {
   const { isInCart, addToCart } = useCart();
@@ -15,6 +66,8 @@ export default function DuelsPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joinBusy, setJoinBusy] = useState(false);
   const [cartMessage, setCartMessage] = useState<string | null>(null);
+  const [filterGame, setFilterGame] = useState<string>('all');
+  const [filterStake, setFilterStake] = useState<StakeKey>('all');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -53,6 +106,25 @@ export default function DuelsPage() {
   };
 
   const openDuels = duels.filter((d) => d.status === 'scheduled');
+
+  // Build the list of games available in the dropdown from whatever open
+  // duels actually exist right now, so the filter never shows a game with 0 results.
+  const availableGames = useMemo(() => {
+    return Array.from(new Set(openDuels.map((d) => d.game).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [openDuels]);
+
+  const filteredDuels = openDuels.filter((d) => {
+    if (filterGame !== 'all' && d.game !== filterGame) return false;
+    if (!matchesStake(d.entry_fee, filterStake)) return false;
+    return true;
+  });
+
+  const resetFilters = () => {
+    setFilterGame('all');
+    setFilterStake('all');
+  };
 
   return (
     <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh', paddingBottom: 80 }}>
@@ -128,6 +200,79 @@ export default function DuelsPage() {
         </div>
       </section>
 
+      {/* Game & Stake Filters */}
+      <section style={{ maxWidth: 1000, margin: '0 auto', padding: '0 24px 24px' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 20,
+            flexWrap: 'wrap',
+            alignItems: 'flex-end',
+            background: '#131627',
+            border: '1px solid var(--panel-border)',
+            borderRadius: 8,
+            padding: 16,
+          }}
+        >
+          <div>
+            <label style={labelStyle} htmlFor="duel-game-filter">
+              Game
+            </label>
+            <select
+              id="duel-game-filter"
+              value={filterGame}
+              onChange={(e) => setFilterGame(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="all">All Games</option>
+              {availableGames.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={labelStyle} htmlFor="duel-stake-filter">
+              Stake Amount
+            </label>
+            <select
+              id="duel-stake-filter"
+              value={filterStake}
+              onChange={(e) => setFilterStake(e.target.value as StakeKey)}
+              style={selectStyle}
+            >
+              {STAKE_RANGES.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(filterGame !== 'all' || filterStake !== 'all') && (
+            <button
+              onClick={resetFilters}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--panel-border)',
+                color: 'var(--muted)',
+                padding: '8px 14px',
+                borderRadius: 4,
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                height: 37,
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      </section>
+
       <section style={{ maxWidth: 1000, margin: '0 auto', padding: '0 24px' }}>
         {cartMessage && (
           <div
@@ -148,13 +293,13 @@ export default function DuelsPage() {
 
         {loading ? (
           <SkeletonGrid count={6} height={140} minWidth={280} />
-        ) : openDuels.length === 0 ? (
+        ) : filteredDuels.length === 0 ? (
           <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
-            No open matches right now. Be the first to create one.
+            No open matches match this filter. Try clearing the filters or be the first to create one.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {openDuels.map((d) => {
+            {filteredDuels.map((d) => {
               const started = d.scheduled_at ? new Date(d.scheduled_at).getTime() <= Date.now() : false;
               const isMine = session && d.player1_id === session.user.id;
               return (
