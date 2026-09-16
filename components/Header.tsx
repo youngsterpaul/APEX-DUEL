@@ -215,32 +215,7 @@ export default function Header() {
               {createOpen && <CreateDropdown />}
             </div>
 
-            {/* Hamburger / Menu toggle button */}
-            <button
-              onClick={() => setMenuOpen(true)}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--panel-border)',
-                color: '#fff',
-                padding: '8px 10px',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '38px',
-                width: '42px',
-              }}
-              aria-label="Open Menu"
-            >
-              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
-              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
-              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
-            </button>
-
-            {/* Cart — moved to the end of this group so it's always the rightmost element */}
+            {/* Cart — placed right before the hamburger */}
             <button
               onClick={() => setCartOpen(true)}
               aria-label="Cart"
@@ -282,6 +257,31 @@ export default function Header() {
                   {count}
                 </span>
               )}
+            </button>
+
+            {/* Hamburger / Menu toggle button — stays last/rightmost */}
+            <button
+              onClick={() => setMenuOpen(true)}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--panel-border)',
+                color: '#fff',
+                padding: '8px 10px',
+                cursor: 'pointer',
+                borderRadius: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '38px',
+                width: '42px',
+              }}
+              aria-label="Open Menu"
+            >
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
             </button>
           </div>
         </div>
