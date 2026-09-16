@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import SkeletonGrid from '../components/SkeletonGrid';
 import Pagination from '../components/Pagination';
+import FindByCode from '../components/FindByCode';
 
 interface Game {
   id: string;
@@ -83,6 +84,32 @@ export default function Challenges() {
         >
           <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create Challenge</span>
         </Link>
+      </section>
+
+      {/* Search by share code — 1v1, tournament, or league */}
+      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 32px' }}>
+        <div
+          style={{
+            background: '#131627',
+            border: '1px solid var(--panel-border)',
+            borderRadius: 8,
+            padding: '18px 20px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 16,
+          }}
+        >
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Have a code?
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+              Find a 1v1 challenge, tournament, or league and jump straight to it to join.
+            </p>
+          </div>
+          <FindByCode />
+        </div>
       </section>
 
       {/* Available games grid */}
