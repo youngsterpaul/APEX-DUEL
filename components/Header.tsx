@@ -114,6 +114,7 @@ export default function Header() {
     textAlign: 'center',
     boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
     cursor: 'pointer',
+    textDecoration: 'none',
   };
 
   const CreateDropdown = ({ fullWidth = false }: { fullWidth?: boolean }) => (
@@ -204,6 +205,27 @@ export default function Header() {
           </nav>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {/* Challenge CTA Button — desktop only in this row (mobile version lives in the row below) */}
+            <Link
+              href="/challenges"
+              className="challenge-desktop-wrap"
+              style={{
+                background: 'var(--red)',
+                color: '#fff',
+                padding: '8px 14px',
+                fontWeight: 700,
+                fontSize: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                textDecoration: 'none',
+                borderRadius: '2px',
+                transform: 'skewX(-10deg)',
+                boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
+              }}
+            >
+              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
+            </Link>
+
             {/* Cart */}
             <button
               onClick={() => setCartOpen(true)}
@@ -248,28 +270,7 @@ export default function Header() {
               )}
             </button>
 
-            {/* Challenge CTA Button */}
-            <Link
-              href="/challenges"
-              style={{
-                background: 'var(--red)',
-                color: '#fff',
-                padding: '8px 14px',
-                fontWeight: 700,
-                fontSize: '12px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                textDecoration: 'none',
-                borderRadius: '2px',
-                transform: 'skewX(-10deg)',
-                display: 'inline-block',
-                boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
-              }}
-            >
-              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
-            </Link>
-
-            {/* Create Button — desktop only (shown inline next to Challenge) */}
+            {/* Create Button — desktop only (mobile version lives in the row below) */}
             <div className="create-desktop-wrap" ref={createDesktopRef} style={{ position: 'relative' }}>
               <button onClick={() => setCreateOpen((v) => !v)} style={createButtonStyle}>
                 <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create</span>
@@ -304,14 +305,19 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Create Button — mobile only, new row below the icon row, sized to the same row width */}
+        {/* Challenge + Create — mobile only, stacked in their own row, same column width as the nav links row below */}
         <div className="create-mobile-wrap">
           <div className="container" style={{ padding: '10px 16px 0', maxWidth: '100%' }}>
-            <div className="create-mobile-inner" ref={createMobileRef} style={{ position: 'relative', width: '100%' }}>
-              <button onClick={() => setCreateOpen((v) => !v)} style={mobileCreateButtonStyle}>
-                + Create
-              </button>
-              {createOpen && <CreateDropdown fullWidth />}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+              <Link href="/challenges" style={mobileCreateButtonStyle}>
+                Challenge
+              </Link>
+              <div className="create-mobile-inner" ref={createMobileRef} style={{ position: 'relative', width: '100%' }}>
+                <button onClick={() => setCreateOpen((v) => !v)} style={mobileCreateButtonStyle}>
+                  + Create
+                </button>
+                {createOpen && <CreateDropdown fullWidth />}
+              </div>
             </div>
           </div>
         </div>
