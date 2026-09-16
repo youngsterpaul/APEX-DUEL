@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useCart } from '../lib/cartContext';
 import PopupMenu from './PopupMenu';
@@ -19,13 +19,27 @@ const navLinks: NavLink[] = [
   { href: '/duels', label: '1v1' },
 ];
 
+interface CreateOption {
+  href: string;
+  label: string;
+}
+
+const createOptions: CreateOption[] = [
+  { href: '/leagues/create', label: 'Create League' },
+  { href: '/tournaments/create', label: 'Create Tournament' },
+  { href: '/duel/create', label: 'Create 1v1 Match' },
+];
+
 export default function Header() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const { count } = useCart();
+  const createDesktopRef = useRef<HTMLDivElement>(null);
+  const createMobileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -42,10 +56,85 @@ export default function Header() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Close the Create dropdown when clicking anywhere outside of it
+  useEffect(() => {
+    if (!createOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const insideDesktop = createDesktopRef.current?.contains(target);
+      const insideMobile = createMobileRef.current?.contains(target);
+      if (!insideDesktop && !insideMobile) {
+        setCreateOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [createOpen]);
+
+  // Close the dropdown on route change
+  useEffect(() => {
+    const handleRouteChange = () => setCreateOpen(false);
+    router.events.on('routeChangeStart', handleRouteChange);
+    return () => router.events.off('routeChangeStart', handleRouteChange);
+  }, [router.events]);
+
   const checkAdmin = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('is_admin').eq('id', userId).maybeSingle();
     setIsAdmin(Boolean(data?.is_admin));
   };
+
+  const createButtonStyle: React.CSSProperties = {
+    background: 'var(--red)',
+    color: '#fff',
+    padding: '8px 14px',
+    fontWeight: 700,
+    fontSize: '12px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    border: 'none',
+    borderRadius: '2px',
+    transform: 'skewX(-10deg)',
+    display: 'inline-block',
+    boxShadow: '0 4px 12px rgba(255,0,0,0.3)',
+    cursor: 'pointer',
+  };
+
+  const CreateDropdown = () => (
+    <div
+      style={{
+        position: 'absolute',
+        top: 'calc(100% + 8px)',
+        right: 0,
+        background: '#131627',
+        border: '1px solid var(--panel-border)',
+        borderRadius: 6,
+        minWidth: 190,
+        overflow: 'hidden',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+        zIndex: 60,
+      }}
+    >
+      {createOptions.map((opt) => (
+        <Link
+          key={opt.href}
+          href={opt.href}
+          onClick={() => setCreateOpen(false)}
+          style={{
+            display: 'block',
+            padding: '12px 16px',
+            fontSize: 13,
+            fontWeight: 600,
+            color: '#fff',
+            textDecoration: 'none',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {opt.label}
+        </Link>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -162,6 +251,14 @@ export default function Header() {
               <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>Challenge</span>
             </Link>
 
+            {/* Create Button — desktop only (shown inline next to Challenge) */}
+            <div className="create-desktop-wrap" ref={createDesktopRef} style={{ position: 'relative' }}>
+              <button onClick={() => setCreateOpen((v) => !v)} style={createButtonStyle}>
+                <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create</span>
+              </button>
+              {createOpen && <CreateDropdown />}
+            </div>
+
             {/* Hamburger / Menu toggle button */}
             <button
               onClick={() => setMenuOpen(true)}
@@ -186,6 +283,16 @@ export default function Header() {
               <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
               <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
             </button>
+          </div>
+        </div>
+
+        {/* Create Button — mobile only, new row below the icon row, right-aligned */}
+        <div className="create-mobile-wrap">
+          <div className="create-mobile-inner" ref={createMobileRef} style={{ position: 'relative' }}>
+            <button onClick={() => setCreateOpen((v) => !v)} style={createButtonStyle}>
+              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create</span>
+            </button>
+            {createOpen && <CreateDropdown />}
           </div>
         </div>
 
@@ -251,6 +358,16 @@ export default function Header() {
           display: block;
         }
 
+        /* Create button: hidden on desktop row context by default, shown via media queries below */
+        .create-desktop-wrap {
+          display: none;
+        }
+        .create-mobile-wrap {
+          display: flex;
+          justify-content: flex-end;
+          padding: 8px 16px 0;
+        }
+
         /* Hide Home link from top sub-nav on small screens (max 768px) */
         @media (max-width: 768px) {
           .mobile-home-nav-item {
@@ -263,6 +380,12 @@ export default function Header() {
             display: flex !important;
           }
           .mobile-subnav {
+            display: none !important;
+          }
+          .create-desktop-wrap {
+            display: inline-flex !important;
+          }
+          .create-mobile-wrap {
             display: none !important;
           }
         }
