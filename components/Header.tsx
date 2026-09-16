@@ -186,50 +186,6 @@ export default function Header() {
           </nav>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            {/* Cart */}
-            <button
-              onClick={() => setCartOpen(true)}
-              aria-label="Cart"
-              style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '38px',
-                height: '38px',
-                borderRadius: '4px',
-                border: '1px solid var(--panel-border)',
-                background: 'transparent',
-                color: '#fff',
-                fontSize: '16px',
-                cursor: 'pointer',
-              }}
-            >
-              🛒
-              {count > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-6px',
-                    right: '-6px',
-                    background: 'var(--red)',
-                    color: '#fff',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    borderRadius: '999px',
-                    minWidth: '16px',
-                    height: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0 4px',
-                  }}
-                >
-                  {count}
-                </span>
-              )}
-            </button>
-
             {/* Challenge CTA Button */}
             <Link
               href="/challenges"
@@ -283,20 +239,55 @@ export default function Header() {
               <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
               <span style={{ width: '18px', height: '2px', background: '#fff' }}></span>
             </button>
-          </div>
-        </div>
 
-        {/* Create Button — mobile only, new row below the icon row, right-aligned */}
-        <div className="create-mobile-wrap">
-          <div className="create-mobile-inner" ref={createMobileRef} style={{ position: 'relative' }}>
-            <button onClick={() => setCreateOpen((v) => !v)} style={createButtonStyle}>
-              <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create</span>
+            {/* Cart — moved to the end of this group so it's always the rightmost element */}
+            <button
+              onClick={() => setCartOpen(true)}
+              aria-label="Cart"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '38px',
+                height: '38px',
+                borderRadius: '4px',
+                border: '1px solid var(--panel-border)',
+                background: 'transparent',
+                color: '#fff',
+                fontSize: '16px',
+                cursor: 'pointer',
+              }}
+            >
+              🛒
+              {count > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-6px',
+                    right: '-6px',
+                    background: 'var(--red)',
+                    color: '#fff',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    borderRadius: '999px',
+                    minWidth: '16px',
+                    height: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                  }}
+                >
+                  {count}
+                </span>
+              )}
             </button>
-            {createOpen && <CreateDropdown />}
           </div>
         </div>
 
-        {/* Mobile Sub-Header Navigation Bar */}
+        {/* Mobile Sub-Header Navigation Bar — Create button now lives in this same
+            row as Markets/Tournaments/Leagues/1v1, instead of its own row above it. */}
         <div
           className="mobile-subnav"
           style={{
@@ -345,6 +336,18 @@ export default function Header() {
                 </Link>
               );
             })}
+
+            {/* Create Button — mobile: now inline in the same row as the nav links above */}
+            <div
+              className="create-mobile-wrap"
+              ref={createMobileRef}
+              style={{ position: 'relative', flexShrink: 0, marginLeft: '4px' }}
+            >
+              <button onClick={() => setCreateOpen((v) => !v)} style={createButtonStyle}>
+                <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>+ Create</span>
+              </button>
+              {createOpen && <CreateDropdown />}
+            </div>
           </div>
         </div>
       </header>
@@ -363,9 +366,7 @@ export default function Header() {
           display: none;
         }
         .create-mobile-wrap {
-          display: flex;
-          justify-content: flex-end;
-          padding: 8px 16px 0;
+          display: inline-flex;
         }
 
         /* Hide Home link from top sub-nav on small screens (max 768px) */
