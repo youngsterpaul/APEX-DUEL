@@ -33,6 +33,19 @@ export default function CreateTournament() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
+  // Session + the competing username the player has saved per game (from their profile)
+  const [session, setSession] = useState<any>(null);
+  const [gameUsernames, setGameUsernames] = useState<Record<string, string>>({});
+
+  // Post-creation "confirm your username" step (only shown when creatorPlays is true)
+  const [stage, setStage] = useState<'form' | 'confirm-username'>('form');
+  const [pendingEvent, setPendingEvent] = useState<{ id?: string; share_code: string } | null>(null);
+  const [usernameChoice, setUsernameChoice] = useState<'saved' | 'custom' | null>(null);
+  const [customUsername, setCustomUsername] = useState('');
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [confirmingUsername, setConfirmingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+
   useEffect(() => {
     supabase
       .from('games')
@@ -45,6 +58,22 @@ export default function CreateTournament() {
           if (data[0]) setGameId(data[0].id);
         }
       });
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session) {
+        supabase
+          .from('profiles')
+          .select('game_usernames')
+          .eq('id', data.session.user.id)
+          .maybeSingle()
+          .then(({ data: profile }) => {
+            if (profile?.game_usernames) setGameUsernames(profile.game_usernames);
+          });
+      }
+    });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,7 +154,19 @@ export default function CreateTournament() {
       });
 
       if (error) throw error;
-      setCreatedCode(data?.share_code ?? null);
+
+      setPendingEvent({ id: data?.id, share_code: data?.share_code ?? '' });
+
+      if (creatorPlays) {
+        // The creator is competing too — confirm which username they'll play under before wrapping up.
+        setUsernameChoice(null);
+        setCustomUsername('');
+        setSaveAsDefault(false);
+        setUsernameError(null);
+        setStage('confirm-username');
+      } else {
+        setCreatedCode(data?.share_code ?? null);
+      }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to create tournament.' });
     } finally {
@@ -138,6 +179,139 @@ export default function CreateTournament() {
     setPhoto(file);
     setPhotoPreview(file ? URL.createObjectURL(file) : null);
   };
+
+  const selectedGame = games.find((g) => g.id === gameId);
+  const gameLabel = selectedGame?.title || 'this game';
+  const savedUsername = gameId ? gameUsernames[gameId] : undefined;
+
+  const confirmUsername = async (rawUsername: string) => {
+    const finalUsername = rawUsername.trim();
+    if (!finalUsername) {
+      setUsernameError('Please enter the username you want to compete with.');
+      return;
+    }
+
+    setUsernameError(null);
+    setConfirmingUsername(true);
+    try {
+      // Persist which username this player is competing under for this tournament, so other
+      // participants see it. Adjust this call to match your schema — e.g. an UPDATE on
+      // tournament_participants where tournament_id = pendingEvent.id and profile_id = session.user.id,
+      // or a dedicated RPC like the one referenced below.
+      await supabase.rpc('set_event_participant_username', {
+        p_event_type: 'tournament',
+        p_event_id: pendingEvent?.id,
+        p_username: finalUsername,
+      });
+
+      if (saveAsDefault && gameId && session) {
+        const updated = { ...gameUsernames, [gameId]: finalUsername };
+        await supabase.from('profiles').update({ game_usernames: updated }).eq('id', session.user.id);
+        setGameUsernames(updated);
+      }
+    } catch (err) {
+      console.error('Failed to save competing username', err);
+    } finally {
+      setConfirmingUsername(false);
+      setCreatedCode(pendingEvent?.share_code ?? null);
+    }
+  };
+
+  if (stage === 'confirm-username') {
+    return (
+      <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
+        <Head>
+          <title>Confirm Your Username | ApexDuel</title>
+        </Head>
+        <section style={{ maxWidth: 520, margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
+          <h2 className="display" style={{ fontSize: 24, marginBottom: 12, textTransform: 'uppercase' }}>
+            One Last Thing
+          </h2>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 24 }}>
+            You're competing in this tournament too. Confirm the username other players will see you as for{' '}
+            <strong style={{ color: '#fff' }}>{gameLabel}</strong>.
+          </p>
+
+          {usernameError && (
+            <div
+              style={{
+                padding: 10,
+                marginBottom: 16,
+                borderRadius: 4,
+                fontSize: 13,
+                background: 'rgba(255,0,0,0.1)',
+                color: '#ff4444',
+                border: '1px solid #ff4444',
+                textAlign: 'left',
+              }}
+            >
+              {usernameError}
+            </div>
+          )}
+
+          {savedUsername && usernameChoice !== 'custom' ? (
+            <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, textAlign: 'left' }}>
+              <p style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+                Your saved username for {gameLabel}
+              </p>
+              <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--gold)', marginBottom: 20 }}>{savedUsername}</p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => confirmUsername(savedUsername)}
+                  disabled={confirmingUsername}
+                  style={{ ...primaryButtonStyle, flex: 1, marginTop: 0 }}
+                >
+                  {confirmingUsername ? 'Confirming…' : `Yes, use "${savedUsername}"`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUsernameChoice('custom')}
+                  style={{ ...toggleStyle(false), flex: 1 }}
+                >
+                  Use a Different Username
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, textAlign: 'left' }}>
+              <label style={labelStyle}>Username for {gameLabel}</label>
+              <input
+                value={customUsername}
+                onChange={(e) => setCustomUsername(e.target.value)}
+                placeholder={`Your ${gameLabel} username`}
+                style={inputStyle}
+              />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginTop: 12 }}>
+                <input type="checkbox" checked={saveAsDefault} onChange={(e) => setSaveAsDefault(e.target.checked)} />
+                Save as my default username for {gameLabel}
+              </label>
+              <button
+                type="button"
+                onClick={() => confirmUsername(customUsername)}
+                disabled={confirmingUsername}
+                style={{ ...primaryButtonStyle, width: '100%', marginTop: 16 }}
+              >
+                {confirmingUsername ? 'Confirming…' : 'Confirm & Continue'}
+              </button>
+              {savedUsername && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsernameChoice(null);
+                    setUsernameError(null);
+                  }}
+                  style={{ ...backLinkStyle, marginTop: 12 }}
+                >
+                  ← Back to saved username
+                </button>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
 
   if (createdCode) {
     return (
@@ -276,6 +450,11 @@ export default function CreateTournament() {
             <input type="checkbox" checked={creatorPlays} onChange={(e) => setCreatorPlays(e.target.checked)} />
             I want to compete in this tournament too
           </label>
+          {creatorPlays && (
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: -12 }}>
+              After you create the tournament, we'll ask you to confirm the username you'll compete with for {gameLabel}.
+            </p>
+          )}
 
           <div>
             <label style={labelStyle}>Background photo (optional)</label>

@@ -26,6 +26,11 @@ const WORLD_COUNTRIES = [
   'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
 ];
 
+interface Game {
+  id: string;
+  title: string;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const [session, setSession] = useState<any>(null);
@@ -45,6 +50,13 @@ export default function ProfilePage() {
   // Per-field Edit Toggle state
   const [editingFields, setEditingFields] = useState<Record<string, boolean>>({});
 
+  // Per-game competing usernames — e.g. { [gameId]: "MyIGN123" }
+  const [games, setGames] = useState<Game[]>([]);
+  const [gameUsernames, setGameUsernames] = useState<Record<string, string>>({});
+  const [editingGameId, setEditingGameId] = useState<string | null>(null);
+  const [gameUsernameDraft, setGameUsernameDraft] = useState('');
+  const [savingGameUsername, setSavingGameUsername] = useState(false);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -60,11 +72,22 @@ export default function ProfilePage() {
     }
   }, [session]);
 
+  useEffect(() => {
+    supabase
+      .from('games')
+      .select('id, title')
+      .or('hidden.eq.false,hidden.is.null')
+      .order('title')
+      .then(({ data }) => {
+        if (data) setGames(data);
+      });
+  }, []);
+
   const fetchProfile = async () => {
     setLoading(true);
     const { data } = await supabase
       .from('profiles')
-      .select('username, full_name, discord_username, whatsapp_username, whatsapp_mobile, gender, country')
+      .select('username, full_name, discord_username, whatsapp_username, whatsapp_mobile, gender, country, game_usernames')
       .eq('id', session.user.id)
       .single();
 
@@ -76,6 +99,7 @@ export default function ProfilePage() {
       setWhatsappMobile(data.whatsapp_mobile || '');
       setGender(data.gender || '');
       setCountry(data.country || '');
+      setGameUsernames(data.game_usernames || {});
     }
     setLoading(false);
   };
@@ -103,6 +127,45 @@ export default function ProfilePage() {
       setEditingFields((prev) => ({ ...prev, [fieldName]: false }));
     }
     setUpdatingField(null);
+  };
+
+  const startEditGameUsername = (gameId: string) => {
+    setMessage(null);
+    setEditingGameId(gameId);
+    setGameUsernameDraft(gameUsernames[gameId] || '');
+  };
+
+  const cancelEditGameUsername = () => {
+    setEditingGameId(null);
+    setGameUsernameDraft('');
+  };
+
+  const saveGameUsername = async (gameId: string) => {
+    const trimmed = gameUsernameDraft.trim();
+    if (!trimmed) {
+      setMessage({ type: 'error', text: 'Username cannot be empty.' });
+      return;
+    }
+
+    setSavingGameUsername(true);
+    setMessage(null);
+
+    const updated = { ...gameUsernames, [gameId]: trimmed };
+    const { error } = await supabase
+      .from('profiles')
+      .update({ game_usernames: updated })
+      .eq('id', session.user.id);
+
+    setSavingGameUsername(false);
+
+    if (error) {
+      setMessage({ type: 'error', text: error.message });
+      return;
+    }
+
+    setGameUsernames(updated);
+    setEditingGameId(null);
+    setMessage({ type: 'success', text: 'Game username saved!' });
   };
 
   const handleSignOut = async () => {
@@ -387,6 +450,72 @@ export default function ProfilePage() {
                     <input type="text" value={whatsappMobile || 'Not provided'} disabled style={disabledInputStyle} />
                   )}
                 </div>
+              </div>
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--panel-border)', margin: '8px 0' }} />
+
+              {/* Per-Game Competing Usernames */}
+              <h3 className="display" style={{ fontSize: '16px', textTransform: 'uppercase' }}>
+                Your In-Game Usernames
+              </h3>
+              <p style={{ color: 'var(--muted)', fontSize: '13px', marginTop: '-12px' }}>
+                Set the username you compete with for each game. When you join or create a league, tournament, or
+                1v1 match for that game, this is what other players will see — and you'll be asked to confirm it.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                {games.map((g) => {
+                  const isEditing = editingGameId === g.id;
+                  const value = gameUsernames[g.id];
+
+                  return (
+                    <div key={g.id}>
+                      <div style={labelHeaderStyle}>
+                        <label style={labelStyle}>{g.title}</label>
+                        {!isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => startEditGameUsername(g.id)}
+                            style={inlineEditBtnStyle}
+                          >
+                            {value ? 'Edit' : 'Set'}
+                          </button>
+                        )}
+                      </div>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            placeholder={`Your ${g.title} username`}
+                            value={gameUsernameDraft}
+                            onChange={(e) => setGameUsernameDraft(e.target.value)}
+                            style={inputStyle}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => saveGameUsername(g.id)}
+                            disabled={savingGameUsername}
+                            style={saveBtnStyle}
+                          >
+                            {savingGameUsername ? '...' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditGameUsername}
+                            style={{ ...inlineEditBtnStyle, color: 'var(--muted)' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <input type="text" value={value || 'Not set'} disabled style={disabledInputStyle} />
+                      )}
+                    </div>
+                  );
+                })}
+                {games.length === 0 && (
+                  <p style={{ color: 'var(--muted)', fontSize: '13px' }}>No games available yet.</p>
+                )}
               </div>
 
               {/* Account Actions */}

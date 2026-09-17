@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { uploadEventImage } from '../../lib/storage';
@@ -17,6 +17,37 @@ export default function CreateDuel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [created, setCreated] = useState<{ id: string; share_code: string } | null>(null);
+
+  // Session + the competing username the player has saved per game (from their profile).
+  // Duels use a free-text game name, so we key the saved-usernames map by the lowercased,
+  // trimmed game name instead of a game_id.
+  const [session, setSession] = useState<any>(null);
+  const [gameUsernames, setGameUsernames] = useState<Record<string, string>>({});
+
+  // Post-creation "confirm your username" step — always shown, since the duel creator always plays.
+  const [stage, setStage] = useState<'form' | 'confirm-username'>('form');
+  const [pendingDuel, setPendingDuel] = useState<{ id: string; share_code: string } | null>(null);
+  const [usernameChoice, setUsernameChoice] = useState<'saved' | 'custom' | null>(null);
+  const [customUsername, setCustomUsername] = useState('');
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [confirmingUsername, setConfirmingUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session) {
+        supabase
+          .from('profiles')
+          .select('game_usernames')
+          .eq('id', data.session.user.id)
+          .maybeSingle()
+          .then(({ data: profile }) => {
+            if (profile?.game_usernames) setGameUsernames(profile.game_usernames);
+          });
+      }
+    });
+  }, []);
 
   const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -75,13 +106,151 @@ export default function CreateDuel() {
       });
 
       if (error) throw error;
-      setCreated({ id: data.id, share_code: data.share_code });
+
+      // The duel creator always plays — confirm which username they'll compete under before wrapping up.
+      setPendingDuel({ id: data.id, share_code: data.share_code });
+      setUsernameChoice(null);
+      setCustomUsername('');
+      setSaveAsDefault(false);
+      setUsernameError(null);
+      setStage('confirm-username');
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Failed to create match.' });
     } finally {
       setLoading(false);
     }
   };
+
+  const gameKey = game.trim().toLowerCase();
+  const gameLabel = game.trim() || 'this game';
+  const savedUsername = gameKey ? gameUsernames[gameKey] : undefined;
+
+  const confirmUsername = async (rawUsername: string) => {
+    const finalUsername = rawUsername.trim();
+    if (!finalUsername) {
+      setUsernameError('Please enter the username you want to compete with.');
+      return;
+    }
+
+    setUsernameError(null);
+    setConfirmingUsername(true);
+    try {
+      // Persist which username this player is competing under for this duel, so their opponent
+      // sees it. Adjust this call to match your schema — e.g. an UPDATE on duels.player1_username
+      // where id = pendingDuel.id, or a dedicated RPC like the one referenced below.
+      await supabase.rpc('set_event_participant_username', {
+        p_event_type: 'duel',
+        p_event_id: pendingDuel?.id,
+        p_username: finalUsername,
+      });
+
+      if (saveAsDefault && gameKey && session) {
+        const updated = { ...gameUsernames, [gameKey]: finalUsername };
+        await supabase.from('profiles').update({ game_usernames: updated }).eq('id', session.user.id);
+        setGameUsernames(updated);
+      }
+    } catch (err) {
+      console.error('Failed to save competing username', err);
+    } finally {
+      setConfirmingUsername(false);
+      if (pendingDuel) setCreated(pendingDuel);
+    }
+  };
+
+  if (stage === 'confirm-username') {
+    return (
+      <div style={{ background: '#0a0b14', color: '#fff', minHeight: '100vh' }}>
+        <Head>
+          <title>Confirm Your Username | ApexDuel</title>
+        </Head>
+        <section style={{ maxWidth: 520, margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
+          <h2 className="display" style={{ fontSize: 24, marginBottom: 12, textTransform: 'uppercase' }}>
+            One Last Thing
+          </h2>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 24 }}>
+            Confirm the username your opponent will see you as for <strong style={{ color: '#fff' }}>{gameLabel}</strong>.
+          </p>
+
+          {usernameError && (
+            <div
+              style={{
+                padding: 10,
+                marginBottom: 16,
+                borderRadius: 4,
+                fontSize: 13,
+                background: 'rgba(255,0,0,0.1)',
+                color: '#ff4444',
+                border: '1px solid #ff4444',
+                textAlign: 'left',
+              }}
+            >
+              {usernameError}
+            </div>
+          )}
+
+          {savedUsername && usernameChoice !== 'custom' ? (
+            <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, textAlign: 'left' }}>
+              <p style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+                Your saved username for {gameLabel}
+              </p>
+              <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--gold)', marginBottom: 20 }}>{savedUsername}</p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => confirmUsername(savedUsername)}
+                  disabled={confirmingUsername}
+                  style={{ ...primaryButtonStyle, flex: 1 }}
+                >
+                  {confirmingUsername ? 'Confirming…' : `Yes, use "${savedUsername}"`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUsernameChoice('custom')}
+                  style={{ ...toggleStyle(false), flex: 1 }}
+                >
+                  Use a Different Username
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: '#131627', border: '1px solid var(--panel-border)', borderRadius: 8, padding: 24, textAlign: 'left' }}>
+              <label style={labelStyle}>Username for {gameLabel}</label>
+              <input
+                value={customUsername}
+                onChange={(e) => setCustomUsername(e.target.value)}
+                placeholder={`Your ${gameLabel} username`}
+                style={inputStyle}
+              />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--muted)', marginTop: 12 }}>
+                <input type="checkbox" checked={saveAsDefault} onChange={(e) => setSaveAsDefault(e.target.checked)} />
+                Save as my default username for {gameLabel}
+              </label>
+              <button
+                type="button"
+                onClick={() => confirmUsername(customUsername)}
+                disabled={confirmingUsername}
+                style={{ ...primaryButtonStyle, width: '100%', marginTop: 16 }}
+              >
+                {confirmingUsername ? 'Confirming…' : 'Confirm & Continue'}
+              </button>
+              {savedUsername && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsernameChoice(null);
+                    setUsernameError(null);
+                  }}
+                  style={{ ...backLinkStyle, marginTop: 12 }}
+                >
+                  ← Back to saved username
+                </button>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
 
   if (created) {
     return (
@@ -179,6 +348,10 @@ export default function CreateDuel() {
                 : "You'll see a request when someone wants to join, and can approve or decline it before they're locked in."}
             </p>
           </div>
+
+          <p style={{ fontSize: 12, color: 'var(--muted)' }}>
+            After you create this match, we'll ask you to confirm the username you'll compete with for {gameLabel || 'this game'}.
+          </p>
 
           <button type="submit" disabled={loading} style={primaryButtonStyle}>
             {loading ? 'Creating…' : 'Create Match'}
