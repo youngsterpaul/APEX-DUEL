@@ -94,7 +94,7 @@ export default function BottomNav() {
         </Link>
 
         <Link href="/transfers" style={navItemStyle(router.pathname === '/transfers')}>
-          <span style={{ fontSize: 18 }}>💸</span>
+          <span style={{ fontSize: 18 }}>🔄 </span>
           <span style={{ fontSize: 10 }}>Transfer</span>
         </Link>
 
