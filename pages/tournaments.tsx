@@ -32,7 +32,6 @@ interface Game {
 const PAGE_SIZE = 6;
 
 // Stake buckets used by the "Stake Amount" filter dropdown.
-// Adjust the thresholds here if your entry fees run higher/lower.
 const STAKE_RANGES = [
   { key: 'all', label: 'Any Stake' },
   { key: 'free', label: 'Free' },
@@ -88,7 +87,6 @@ export default function Tournaments() {
   const [gamesMap, setGamesMap] = useState<Record<string, Game>>({});
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterGame, setFilterGame] = useState<string>('all');
   const [filterStake, setFilterStake] = useState<StakeKey>('all');
   const [cartMessage, setCartMessage] = useState<string | null>(null);
@@ -166,7 +164,6 @@ export default function Tournaments() {
   }, [tournaments, gamesMap]);
 
   const filteredTournaments = tournaments.filter((t) => {
-    if (filterStatus !== 'all' && t.status.toLowerCase() !== filterStatus) return false;
     if (filterGame !== 'all' && t.game_id !== filterGame) return false;
     if (!matchesStake(t.entry_fee, filterStake)) return false;
     return true;
@@ -176,7 +173,6 @@ export default function Tournaments() {
   const pageTournaments = filteredTournaments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const resetFilters = () => {
-    setFilterStatus('all');
     setFilterGame('all');
     setFilterStake('all');
     setPage(1);
@@ -236,34 +232,6 @@ export default function Tournaments() {
         </Link>
       </section>
 
-      {/* Status Filter Bar */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 16px' }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {['all', 'registration', 'live', 'completed'].map((st) => (
-            <button
-              key={st}
-              onClick={() => {
-                setFilterStatus(st);
-                setPage(1);
-              }}
-              style={{
-                background: filterStatus === st ? 'var(--red)' : '#131627',
-                color: '#fff',
-                border: '1px solid var(--panel-border)',
-                padding: '8px 16px',
-                borderRadius: 4,
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-              }}
-            >
-              {st === 'all' ? 'All Events' : st}
-            </button>
-          ))}
-        </div>
-      </section>
-
       {/* Game & Stake Filters */}
       <section style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 24px' }}>
         <div
@@ -321,7 +289,7 @@ export default function Tournaments() {
             </select>
           </div>
 
-          {(filterGame !== 'all' || filterStake !== 'all' || filterStatus !== 'all') && (
+          {(filterGame !== 'all' || filterStake !== 'all') && (
             <button
               onClick={resetFilters}
               style={{
