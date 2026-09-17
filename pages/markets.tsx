@@ -2,7 +2,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import FindByCode from '../components/FindByCode';
 import SkeletonGrid from '../components/SkeletonGrid';
 
 interface Game {
@@ -88,12 +87,9 @@ export default function MarketsPage() {
         <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 900, textTransform: 'uppercase', marginBottom: 12 }}>
           Game Account <span style={{ color: 'var(--red)' }}>Marketplace</span>
         </h1>
-        <p style={{ color: 'var(--muted)', fontSize: 15, lineHeight: 1.5, marginBottom: 24 }}>
+        <p style={{ color: 'var(--muted)', fontSize: 15, lineHeight: 1.5 }}>
           Pick a game to browse the accounts currently for sale.
         </p>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <FindByCode />
-        </div>
       </section>
 
       <section className="container" style={{ maxWidth: 1200, margin: '0 auto', padding: '0 20px 80px' }}>
